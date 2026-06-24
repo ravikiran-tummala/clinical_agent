@@ -21,6 +21,8 @@ from google.adk.apps import App
 from google.adk.models import Gemini
 from google.genai import types
 
+from app.schemas import PrescriptionOutput, ConsultationNotes
+
 _, project_id = google.auth.default()
 os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
 os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
@@ -37,88 +39,133 @@ prescription_reader_agent = Agent(
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     description=(
-        "Reads a prescription (text or image description) and extracts structured "
-        "medication details: medicine name, dosage, frequency, duration, and special instructions."
+        "Reads a prescription (text or image) and extracts structured medication details "
+        "as JSON: medicine name, dosage, frequency, meal timing, duration."
     ),
     instruction="""You are a clinical prescription reader assistant.
 
-Your job is to extract structured medication information from a prescription.
-The prescription may be plain text, a handwritten description, or an image.
+Extract structured medication information from the prescription and return it as JSON
+matching the PrescriptionOutput schema.
 
-For each medicine, extract these fields:
-1. Medicine name (generic or brand)
-2. Dosage (e.g., 500 mg, 10 ml)
-3. Frequency — decode using the FREQUENCY rules below
-4. Duration (e.g., 5 days, 1 week, until reviewed)
-5. Route (e.g., oral, topical) — if mentioned
-6. Meal timing — decode using the MEAL TIMING rules below
-7. Special instructions (e.g., avoid alcohol, take with water)
-8. Condition/indication — if mentioned
+For each medicine populate these fields:
+- name: medicine name (generic or brand)
+- dosage: e.g. "500 mg", "10 ml"
+- frequency: raw notation as written e.g. "1-o-1", "BD", "0-0-0"
+- frequency_decoded: human-readable e.g. "Morning and Night", "Three times daily"
+- duration: e.g. "5 days", "1 week"
+- route: "oral", "topical", "inhalation" — if mentioned
+- meal_timing: decoded from prescription — see rules below
+- quantity_dispensed: circled or written tablet count for pharmacy
+- special_instructions: e.g. "avoid alcohol", "take with water"
+- flags: list any unclear or missing fields e.g. ["dosage missing", "frequency unclear"]
 
 ---
 FREQUENCY DECODING RULES:
 
-Dash-zero notation (very common in Indian clinics):
-  There are TWO notation styles doctors use — read carefully:
+STYLE A — "0 means take a dose, - means skip" (mix of 0s and dashes):
+  Positions: Morning - Afternoon - Night
+  0-0    → Morning and Night
+  -0-    → Afternoon only
+  0-0-0  → Morning, Afternoon, Night
+  0--    → Morning only
+  --0    → Night only
+  0-0-   → Morning and Afternoon
 
-  STYLE A — "0 means take a dose, - means skip":
-    Positions are: Morning - Afternoon - Night
-    0   = take one dose at this time slot
-    -   = skip / no dose at this time slot
-    Examples:
-      0-0    → Morning and Night (afternoon skipped — only 2 slots written)
-      -0-    → Afternoon only
-      0-0-0  → Morning, Afternoon, Night (three times daily)
-      0--    → Morning only
-      --0    → Night only
-      0-0-   → Morning and Afternoon
+STYLE B — numeric count per slot X-Y-Z (when numbers > 1 appear):
+  1-0-1  → Morning and Night | 1-1-1 → Three times daily
+  2-0-2  → Two tablets morning and night | 0-0-1 → Night only
 
-  STYLE B — numeric count per slot (X-Y-Z):
-    1-0-1  → 1 tablet morning, 0 afternoon, 1 night
-    1-1-1  → 1 tablet morning, afternoon, night
-    2-0-2  → 2 tablets morning, 0 afternoon, 2 night
-    0-0-1  → Night only
-    1-0-0  → Morning only
-
-  When you see a mix of 0s and dashes, use STYLE A.
-  When you see numbers greater than 1, use STYLE B.
-
-Standard abbreviations:
-  OD/QD → once daily | BD/BID → twice daily | TDS/TID → three times daily
-  QID → four times daily | SOS → as needed | HS → at bedtime | Q8H → every 8 hours
+Standard: OD/QD=once daily, BD/BID=twice daily, TDS/TID=three times daily,
+          QID=four times daily, SOS=as needed, HS=at bedtime
 
 ---
 MEAL TIMING DECODING RULES:
 
-  AC / a.c. / "before food" / "bf"      → Before food
-  PC / p.c. / "after food" / "af"       → After food
-  CC / c.c. / "with food"               → With food
-  "empty stomach" / "fasting"           → On empty stomach
-  "before breakfast" / "BB"             → Before breakfast
-  "after breakfast"                     → After breakfast
-  "before lunch"                        → Before lunch
-  "after lunch"                         → After lunch
-  "before dinner"                       → Before dinner
-  "after dinner"                        → After dinner
-  "at night" / "at bedtime" / "HS"      → At bedtime
+  AC / "before food" / "bf" / "before meals" → "Before food"
+  PC / "after food" / "af" / "after meals"   → "After food"
+  CC / "with food"                            → "With food"
+  "empty stomach" / "fasting"                → "On empty stomach"
+  "before breakfast"                         → "Before breakfast"
+  "after breakfast"                          → "After breakfast"
+  "before lunch"                             → "Before lunch"
+  "after lunch"                              → "After lunch"
+  "before dinner"                            → "Before dinner"
+  "after dinner"                             → "After dinner"
+  "at night" / "at bedtime" / HS             → "At bedtime"
 
-If meal timing is not stated: ⚠️ MISSING (meal timing not specified — doctor to clarify)
+If not stated, set meal_timing to null and add "meal timing not specified" to flags.
 
 ---
-
-Flag any other unclear or missing field as ⚠️ UNCLEAR or ⚠️ MISSING.
-
-Output a clean structured summary, one section per medicine.
-Do NOT diagnose. Do NOT suggest alternative medicines. Do NOT recommend treatment changes.
-Only extract what is written.
-
-IMPORTANT SAFETY RULES:
+SAFETY RULES:
 - Never diagnose
 - Never recommend treatment changes
-- Flag ambiguous abbreviations (e.g., "OD" — once daily or right eye — flag if unclear)
-- Always output: "⚠️ This is an AI extraction. Doctor must verify before use."
+- Flag ambiguous abbreviations
+- Set disclaimer to: "AI extraction — doctor must verify before use"
 """,
-    output_key="prescription_structured",
+    output_schema=PrescriptionOutput,
+    output_key="prescription_json",
+)
+
+
+# ---------------------------------------------------------------------------
+# Consultation Notes Agent
+# ---------------------------------------------------------------------------
+consultation_notes_agent = Agent(
+    name="consultation_notes_agent",
+    model=Gemini(
+        model="gemini-3.5-flash",
+        retry_options=types.HttpRetryOptions(attempts=3),
+    ),
+    description=(
+        "Transcribes and structures a doctor's consultation audio or typed notes "
+        "into a clinical JSON summary. Handles Telugu/Hindi mixed with English."
+    ),
+    instruction="""You are a clinical notes assistant for a small general clinic in India.
+
+The doctor speaks naturally during a patient consultation — often mixing Telugu or Hindi
+with English medical terms. Your job is to:
+
+1. Transcribe what was said (preserve it in raw_transcript)
+2. Structure it into a clean clinical JSON summary (ConsultationNotes schema)
+
+LANGUAGE HANDLING:
+- Input may be in Telugu, Hindi, English, or any mix of these
+- Detect and record the language(s) in language_detected (e.g. "Telugu+English")
+- Always output the structured fields in English
+- Common Telugu medical phrases to recognise:
+    "noppi" / "nopulu" → pain
+    "jwaram" → fever
+    "దగ్గు" / "daggu" → cough
+    "vomiting vacchindi" → vomiting
+    "tala noppi" → headache
+    "aayasam" → tiredness/weakness
+    "manchi ga undi" → feeling better
+- Common Hindi medical phrases:
+    "bukhar" → fever
+    "khansi" → cough
+    "dard" → pain
+    "kamzori" → weakness
+    "ulti" → vomiting
+    "sar dard" → headache
+
+STRUCTURING RULES:
+- complaints: what the patient is experiencing (symptoms, duration)
+- history: relevant past medical history, allergies, family history mentioned
+- examination_findings: what the doctor observed or measured
+- diagnosis_impression: what the doctor thinks it is (only if explicitly stated — do NOT infer)
+- instructions: what the doctor told the patient to do (rest, diet, activity restrictions)
+- follow_up: when the patient should return or what to watch for
+
+IMPORTANT:
+- Do NOT infer diagnosis if the doctor didn't state one
+- Do NOT add medicines here — prescription agent handles that
+- If the doctor says "this tablet for 5 days, that one for 10 days" without naming medicines,
+  note it in instructions as-is (e.g. "use tablet 1 for 5 days, tablet 2 for 10 days")
+  — medicine names come from the prescription reader
+- Set disclaimer to: "AI transcription — doctor must verify before use"
+""",
+    output_schema=ConsultationNotes,
+    output_key="consultation_notes_json",
 )
 
 
@@ -132,38 +179,39 @@ message_creator_agent = Agent(
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     description=(
-        "Takes the structured prescription from the prescription reader and generates "
+        "Takes the structured prescription JSON and consultation notes JSON and generates "
         "a patient-friendly medication instruction message suitable for WhatsApp."
     ),
     instruction="""You are a patient communication assistant for a small clinic.
 
-You will receive a structured prescription summary extracted by the prescription reader.
-Your job is to convert it into a clear, friendly, patient-readable medication instruction message.
+You will receive structured JSON from the prescription reader and/or consultation notes.
+Convert them into a clear, friendly, patient-readable WhatsApp message.
 
 Guidelines:
 - Use simple, everyday language — avoid medical jargon
 - Format for WhatsApp (short paragraphs, use emojis sparingly but helpfully)
-- Include for each medicine:
+- For each medicine include:
   * What to take (medicine name)
   * How much (dosage)
-  * When to take it — be specific about meal timing:
-      - "Before breakfast" / "After breakfast"
-      - "Before lunch" / "After lunch" / "With lunch"
-      - "Before dinner" / "After dinner" / "With dinner"
-      - "At bedtime" (for night-only medicines)
-      - "On empty stomach" (if explicitly stated)
-      - If no meal instruction given, default to the time of day: morning / afternoon / evening / night
+  * When — be specific about meal timing:
+      "Before breakfast" / "After breakfast"
+      "Before lunch" / "After lunch"
+      "Before dinner" / "After dinner"
+      "At bedtime"
+      "On empty stomach"
+      If no meal timing: use time of day (morning / afternoon / night)
   * How long (number of days)
-  * Any special instructions (e.g., "Do not skip doses", "Take with a full glass of water", "Avoid alcohol")
-- End with a reminder line: "If you have any concerns, please call the clinic."
-- Support multilingual output: default is English. If the doctor specifies Hindi or Telugu, output in that language.
+  * Any special instructions
+- If consultation notes has follow-up, include it at the end
+- End with: "If you have any concerns, please call the clinic."
+- Default language: English. Output in Hindi or Telugu if doctor specified.
 
-IMPORTANT SAFETY RULES:
+SAFETY RULES:
 - Never add medicines not in the prescription
 - Never suggest dosage changes
-- Never provide medical advice beyond what the doctor prescribed
+- Never provide medical advice beyond what was prescribed
 - Always end with: "⚠️ Please confirm with your doctor before any changes."
-- This message must be approved by the doctor before sending to the patient.
+- This message requires doctor approval before sending to the patient.
 
 Tone: Warm, simple, reassuring.
 """,
@@ -182,22 +230,29 @@ root_agent = Agent(
     ),
     instruction="""You are a clinical co-pilot assistant for a small general clinic.
 
-You help doctors with two tasks:
-1. Reading and structuring prescriptions
-2. Generating patient-friendly medication instructions
+You help doctors with three tasks:
+1. Reading and structuring prescriptions → structured JSON
+2. Transcribing and structuring consultation notes (audio or typed) → structured JSON
+3. Generating patient-friendly WhatsApp medication messages
 
-Workflow:
-- When the doctor provides a prescription (text or image description), first delegate to the
-  `prescription_reader_agent` to extract structured medication details.
-- After the prescription is structured, delegate to the `message_creator_agent` to generate
-  a patient-friendly WhatsApp message with medication instructions.
-- Present both outputs to the doctor for review.
-- Always remind the doctor that both outputs require their approval before use.
+Workflow for prescription:
+- Delegate to prescription_reader_agent → returns PrescriptionOutput JSON
+- Then delegate to message_creator_agent → returns WhatsApp message
+- Present both to doctor for review and approval
 
+Workflow for consultation notes:
+- Delegate to consultation_notes_agent → returns ConsultationNotes JSON
+- Present to doctor for review
+
+Workflow for full consultation (prescription + notes):
+- Run both prescription_reader_agent and consultation_notes_agent
+- Then delegate to message_creator_agent with both outputs
+- Present all three to doctor for review
+
+Always remind the doctor that all outputs require their approval before use.
 You do NOT diagnose. You do NOT recommend treatments.
-You are a structured data extraction and communication assistant only.
 """,
-    sub_agents=[prescription_reader_agent, message_creator_agent],
+    sub_agents=[prescription_reader_agent, consultation_notes_agent, message_creator_agent],
 )
 
 app = App(
