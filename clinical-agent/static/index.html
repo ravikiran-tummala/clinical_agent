@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clinical Co-Pilot</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #F0F4F8;
+      color: #1A2B3C;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: #0F4C75;
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .header-logo { font-size: 24px; }
+    .header-title { font-size: 18px; font-weight: 600; }
+    .header-sub { font-size: 12px; opacity: 0.7; }
+
+    /* Steps */
+    .steps {
+      display: flex;
+      background: white;
+      border-bottom: 1px solid #E2E8F0;
+      overflow: hidden;
+    }
+    .step {
+      flex: 1;
+      padding: 10px 4px;
+      text-align: center;
+      font-size: 11px;
+      color: #94A3B8;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .step.active { color: #0F4C75; border-bottom-color: #0F4C75; font-weight: 600; }
+    .step.done { color: #22C55E; border-bottom-color: #22C55E; }
+    .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #E2E8F0; font-size: 11px; font-weight: 700;
+      margin-bottom: 3px;
+    }
+    .step.active .step-num { background: #0F4C75; color: white; }
+    .step.done .step-num { background: #22C55E; color: white; }
+
+    /* Screens */
+    .screen { display: none; padding: 20px; max-width: 600px; margin: 0 auto; }
+    .screen.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-size: 14px; font-weight: 600; color: #475569;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 14px;
+    }
+
+    /* Form */
+    label { display: block; font-size: 13px; color: #64748B; margin-bottom: 5px; }
+    input[type="text"], input[type="tel"], textarea {
+      width: 100%; padding: 12px 14px;
+      border: 1.5px solid #E2E8F0; border-radius: 8px;
+      font-size: 15px; color: #1A2B3C;
+      outline: none; transition: border-color 0.2s;
+      margin-bottom: 14px;
+    }
+    input:focus, textarea:focus { border-color: #0F4C75; }
+
+    /* Buttons */
+    .btn {
+      width: 100%; padding: 14px;
+      border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-primary { background: #0F4C75; color: white; }
+    .btn-primary:hover { background: #0D3F63; }
+    .btn-primary:disabled { background: #94A3B8; cursor: not-allowed; }
+    .btn-secondary { background: #F1F5F9; color: #475569; margin-top: 10px; }
+    .btn-secondary:hover { background: #E2E8F0; }
+    .btn-success { background: #16A34A; color: white; margin-top: 10px; }
+    .btn-success:hover { background: #15803D; }
+    .btn-danger { background: #DC2626; color: white; }
+    .btn-danger:hover { background: #B91C1C; }
+
+    /* Patient badge */
+    .patient-badge {
+      background: #EFF6FF; border: 1px solid #BFDBFE;
+      border-radius: 10px; padding: 12px 16px;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px;
+    }
+    .patient-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: #0F4C75; color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; flex-shrink: 0;
+    }
+    .patient-name { font-weight: 600; font-size: 15px; }
+    .patient-phone { font-size: 12px; color: #64748B; }
+
+    /* Mic button */
+    .mic-container { text-align: center; padding: 10px 0 20px; }
+    .mic-btn {
+      width: 80px; height: 80px; border-radius: 50%;
+      border: none; cursor: pointer;
+      background: #0F4C75; color: white;
+      font-size: 32px;
+      box-shadow: 0 4px 12px rgba(15,76,117,0.35);
+      transition: all 0.2s;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .mic-btn:hover { transform: scale(1.05); }
+    .mic-btn.recording {
+      background: #DC2626;
+      animation: pulse 1.2s infinite;
+      box-shadow: 0 0 0 0 rgba(220,38,38,0.4);
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
+      70%  { box-shadow: 0 0 0 16px rgba(220,38,38,0); }
+      100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+    }
+    .mic-label { margin-top: 10px; font-size: 13px; color: #64748B; }
+
+    /* Or divider */
+    .or-divider {
+      display: flex; align-items: center; gap: 10px;
+      color: #94A3B8; font-size: 12px; margin: 14px 0;
+    }
+    .or-divider::before, .or-divider::after {
+      content: ''; flex: 1; height: 1px; background: #E2E8F0;
+    }
+
+    /* Upload zone */
+    .upload-zone {
+      border: 2px dashed #CBD5E1; border-radius: 10px;
+      padding: 30px; text-align: center; cursor: pointer;
+      transition: all 0.2s; background: #F8FAFC;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: #0F4C75; background: #EFF6FF;
+    }
+    .upload-icon { font-size: 36px; margin-bottom: 8px; }
+    .upload-text { font-size: 14px; color: #64748B; }
+    .upload-text strong { color: #0F4C75; }
+    .upload-preview {
+      max-width: 100%; max-height: 300px;
+      border-radius: 8px; margin-top: 12px;
+      display: none;
+    }
+
+    /* Summary cards */
+    .summary-section { margin-top: 16px; }
+    .medicine-card {
+      border-left: 3px solid #0F4C75;
+      padding: 10px 14px; margin-bottom: 10px;
+      background: #F8FAFC; border-radius: 0 8px 8px 0;
+    }
+    .medicine-name { font-weight: 600; font-size: 14px; color: #0F4C75; }
+    .medicine-detail { font-size: 13px; color: #475569; margin-top: 3px; }
+    .medicine-detail span { font-weight: 500; color: #1A2B3C; }
+    .flag-badge {
+      display: inline-block; background: #FEF3C7; color: #92400E;
+      font-size: 11px; padding: 2px 7px; border-radius: 4px;
+      margin-top: 4px;
+    }
+
+    /* Message preview */
+    .message-preview {
+      background: #F0FDF4; border: 1px solid #BBF7D0;
+      border-radius: 10px; padding: 16px;
+      font-size: 14px; line-height: 1.7;
+      white-space: pre-wrap; font-family: inherit;
+      margin-top: 12px;
+    }
+    .copy-btn {
+      background: #16A34A; color: white;
+      border: none; border-radius: 8px;
+      padding: 10px 18px; font-size: 14px;
+      cursor: pointer; margin-top: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .copy-btn:hover { background: #15803D; }
+
+    /* Spinner */
+    .spinner {
+      display: none; text-align: center;
+      padding: 30px; color: #64748B; font-size: 14px;
+    }
+    .spinner-icon {
+      width: 36px; height: 36px;
+      border: 3px solid #E2E8F0;
+      border-top-color: #0F4C75;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Vitals row */
+    .vitals-row {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;
+    }
+    .vital-chip {
+      background: #EFF6FF; border: 1px solid #BFDBFE;
+      border-radius: 6px; padding: 4px 10px;
+      font-size: 12px; color: #1E40AF;
+    }
+
+    /* Notes chips */
+    .chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chip {
+      background: #F1F5F9; border-radius: 20px;
+      padding: 4px 12px; font-size: 13px; color: #334155;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1A2B3C; color: white; padding: 12px 20px;
+      border-radius: 8px; font-size: 14px;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+      z-index: 999;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">🩺</div>
+  <div>
+    <div class="header-title">Clinical Co-Pilot</div>
+    <div class="header-sub">Doctor Assistant · AI-powered</div>
+  </div>
+</div>
+
+<!-- Step indicator -->
+<div class="steps">
+  <div class="step active" id="step1">
+    <div><div class="step-num">1</div></div>
+    Patient
+  </div>
+  <div class="step" id="step2">
+    <div><div class="step-num">2</div></div>
+    Notes
+  </div>
+  <div class="step" id="step3">
+    <div><div class="step-num">3</div></div>
+    Prescription
+  </div>
+</div>
+
+<!-- ─── SCREEN 1: Patient Selection ─── -->
+<div class="screen active" id="screen1">
+  <div class="card">
+    <div class="card-title">Select Patient</div>
+    <label>Phone Number</label>
+    <input type="tel" id="patientPhone" placeholder="+91 98765 43210" />
+    <label>Patient Name</label>
+    <input type="text" id="patientName" placeholder="e.g. Ramesh Kumar" />
+    <label>Age &amp; Gender</label>
+    <input type="text" id="patientAge" placeholder="e.g. 42 years, Male" />
+    <button class="btn btn-primary" onclick="selectPatient()">
+      ▶ Start Consultation
+    </button>
+  </div>
+</div>
+
+<!-- ─── SCREEN 2: Consultation Notes ─── -->
+<div class="screen" id="screen2">
+  <div id="patientBadge2" class="patient-badge"></div>
+
+  <div class="card">
+    <div class="card-title">Consultation Notes</div>
+
+    <!-- Mic recording -->
+    <div class="mic-container">
+      <button class="mic-btn" id="micBtn" onclick="toggleRecording()">🎤</button>
+      <div class="mic-label" id="micLabel">Tap to record</div>
+    </div>
+
+    <div class="or-divider">or type notes</div>
+
+    <textarea id="notesText" rows="4" placeholder="Patient has fever for 2 days, mild cough. No h/o DM…"></textarea>
+
+    <button class="btn btn-primary" id="processNotesBtn" onclick="processNotes()">
+      ✦ Process Notes
+    </button>
+    <button class="btn btn-secondary" onclick="skipNotes()">
+      Skip → Go to Prescription
+    </button>
+  </div>
+
+  <!-- Spinner -->
+  <div class="spinner" id="notesSpinner">
+    <div class="spinner-icon"></div>
+    Processing notes…
+  </div>
+
+  <!-- Notes Summary -->
+  <div id="notesSummary" style="display:none">
+    <div class="card">
+      <div class="card-title">📋 Consultation Summary</div>
+      <div id="notesSummaryContent"></div>
+      <button class="btn btn-primary" style="margin-top:14px" onclick="goTo(3)">
+        Next → Upload Prescription
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SCREEN 3: Prescription ─── -->
+<div class="screen" id="screen3">
+  <div id="patientBadge3" class="patient-badge"></div>
+
+  <div class="card">
+    <div class="card-title">Upload Prescription</div>
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('rxFile').click()"
+         ondragover="onDragOver(event)" ondrop="onDrop(event)">
+      <div class="upload-icon">📄</div>
+      <div class="upload-text"><strong>Tap to upload</strong> or drag prescription here<br/>
+        <small>JPG, PNG, WEBP supported</small></div>
+      <img id="uploadPreview" class="upload-preview" />
+    </div>
+    <input type="file" id="rxFile" accept="image/*" style="display:none" onchange="onFileSelect(event)" />
+
+    <button class="btn btn-primary" style="margin-top:14px" id="readRxBtn"
+            onclick="readPrescription()" disabled>
+      🔍 Read Prescription
+    </button>
+  </div>
+
+  <!-- Spinner -->
+  <div class="spinner" id="rxSpinner">
+    <div class="spinner-icon"></div>
+    Reading prescription…
+  </div>
+
+  <!-- Prescription Summary -->
+  <div id="rxSummary" style="display:none">
+    <div class="card">
+      <div class="card-title">💊 Medicines Extracted</div>
+      <div id="rxSummaryContent"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💬 Patient Message</div>
+      <div class="spinner" id="msgSpinner" style="display:block">
+        <div class="spinner-icon"></div>
+        Generating message…
+      </div>
+      <div id="msgContent" style="display:none">
+        <div class="message-preview" id="messageText"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px">
+          <button class="copy-btn" onclick="copyMessage()">📋 Copy Message</button>
+          <button class="copy-btn" style="background:#075E54" onclick="shareWhatsApp()">
+            📲 Share via WhatsApp
+          </button>
+        </div>
+        <p style="font-size:12px; color:#DC2626; margin-top:10px">
+          ⚠️ Doctor approval required before sending to patient
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────
+  let patient = { name: '', phone: '', age: '' };
+  let notesData = null;
+  let prescriptionData = null;
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let isRecording = false;
+  let audioBlob = null;
+
+  // ── Navigation ──────────────────────────────────────────────────────────
+  function goTo(n) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen' + n).classList.add('active');
+    document.querySelectorAll('.step').forEach((s, i) => {
+      s.classList.remove('active', 'done');
+      if (i + 1 < n) s.classList.add('done');
+      if (i + 1 === n) s.classList.add('active');
+    });
+    window.scrollTo(0, 0);
+  }
+
+  function patientBadgeHTML() {
+    const initials = patient.name
+      ? patient.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase()
+      : '?';
+    return `<div class="patient-avatar">${initials}</div>
+      <div>
+        <div class="patient-name">${patient.name || 'Unknown Patient'}</div>
+        <div class="patient-phone">${patient.phone}${patient.age ? ' · ' + patient.age : ''}</div>
+      </div>`;
+  }
+
+  // ── Screen 1 ─────────────────────────────────────────────────────────────
+  function selectPatient() {
+    const phone = document.getElementById('patientPhone').value.trim();
+    const name = document.getElementById('patientName').value.trim();
+    const age = document.getElementById('patientAge').value.trim();
+    if (!phone) { showToast('Please enter a phone number'); return; }
+    patient = { phone, name, age };
+    document.getElementById('patientBadge2').innerHTML = patientBadgeHTML();
+    document.getElementById('patientBadge3').innerHTML = patientBadgeHTML();
+    goTo(2);
+  }
+
+  // ── Screen 2: Voice recording ─────────────────────────────────────────────
+  async function toggleRecording() {
+    if (!isRecording) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = () => {
+          audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          document.getElementById('micLabel').textContent = '✅ Recording saved — tap Process Notes';
+          stream.getTracks().forEach(t => t.stop());
+        };
+        mediaRecorder.start();
+        isRecording = true;
+        document.getElementById('micBtn').classList.add('recording');
+        document.getElementById('micBtn').textContent = '⏹';
+        document.getElementById('micLabel').textContent = 'Recording… tap to stop';
+      } catch (e) {
+        showToast('Microphone access denied');
+      }
+    } else {
+      mediaRecorder.stop();
+      isRecording = false;
+      document.getElementById('micBtn').classList.remove('recording');
+      document.getElementById('micBtn').textContent = '🎤';
+    }
+  }
+
+  async function processNotes() {
+    const text = document.getElementById('notesText').value.trim();
+    if (!audioBlob && !text) { showToast('Record audio or type notes first'); return; }
+
+    document.getElementById('notesSpinner').style.display = 'block';
+    document.getElementById('notesSummary').style.display = 'none';
+    document.getElementById('processNotesBtn').disabled = true;
+
+    const formData = new FormData();
+    if (audioBlob) {
+      formData.append('audio', audioBlob, 'recording.webm');
+    } else {
+      formData.append('text', text);
+    }
+
+    try {
+      const res = await fetch('/api/notes/process', { method: 'POST', body: formData });
+      notesData = await res.json();
+      renderNotesSummary(notesData);
+    } catch (e) {
+      showToast('Error processing notes');
+    } finally {
+      document.getElementById('notesSpinner').style.display = 'none';
+      document.getElementById('processNotesBtn').disabled = false;
+    }
+  }
+
+  function renderNotesSummary(data) {
+    let html = '';
+    if (data.language_detected) {
+      html += `<div style="font-size:12px;color:#64748B;margin-bottom:10px">🌐 Language: ${data.language_detected}</div>`;
+    }
+    if (data.complaints?.length) {
+      html += `<div style="margin-bottom:10px"><strong style="font-size:13px">Complaints</strong>
+        <div class="chip-list">${data.complaints.map(c => `<div class="chip">${c}</div>`).join('')}</div></div>`;
+    }
+    if (data.history?.length) {
+      html += `<div style="margin-bottom:10px"><strong style="font-size:13px">History</strong>
+        <div class="chip-list">${data.history.map(h => `<div class="chip">${h}</div>`).join('')}</div></div>`;
+    }
+    if (data.examination_findings?.length) {
+      html += `<div style="margin-bottom:10px"><strong style="font-size:13px">Examination</strong>
+        <div class="chip-list">${data.examination_findings.map(f => `<div class="chip">${f}</div>`).join('')}</div></div>`;
+    }
+    if (data.diagnosis_impression) {
+      html += `<div style="margin-bottom:10px"><strong style="font-size:13px">Impression</strong>
+        <div style="margin-top:6px;font-size:14px">${data.diagnosis_impression}</div></div>`;
+    }
+    if (data.instructions?.length) {
+      html += `<div style="margin-bottom:10px"><strong style="font-size:13px">Instructions</strong>
+        <div class="chip-list">${data.instructions.map(i => `<div class="chip">${i}</div>`).join('')}</div></div>`;
+    }
+    if (data.follow_up) {
+      html += `<div style="background:#FFF7ED;border-left:3px solid #F97316;padding:10px;border-radius:0 8px 8px 0;margin-top:8px">
+        📅 <strong>Follow-up:</strong> ${data.follow_up}</div>`;
+    }
+    document.getElementById('notesSummaryContent').innerHTML = html;
+    document.getElementById('notesSummary').style.display = 'block';
+  }
+
+  function skipNotes() { goTo(3); }
+
+  // ── Screen 3: Prescription ────────────────────────────────────────────────
+  let selectedFile = null;
+
+  function onFileSelect(e) {
+    selectedFile = e.target.files[0];
+    showPreview(selectedFile);
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    document.getElementById('uploadZone').classList.add('dragover');
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    document.getElementById('uploadZone').classList.remove('dragover');
+    selectedFile = e.dataTransfer.files[0];
+    showPreview(selectedFile);
+  }
+
+  function showPreview(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('uploadPreview');
+      img.src = e.target.result;
+      img.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+    document.getElementById('readRxBtn').disabled = false;
+  }
+
+  async function readPrescription() {
+    if (!selectedFile) { showToast('Please upload a prescription image'); return; }
+
+    document.getElementById('rxSpinner').style.display = 'block';
+    document.getElementById('rxSummary').style.display = 'none';
+    document.getElementById('readRxBtn').disabled = true;
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const res = await fetch('/api/prescription/read', { method: 'POST', body: formData });
+      prescriptionData = await res.json();
+      renderRxSummary(prescriptionData);
+      document.getElementById('rxSummary').style.display = 'block';
+      generateMessage();
+    } catch (e) {
+      showToast('Error reading prescription');
+    } finally {
+      document.getElementById('rxSpinner').style.display = 'none';
+      document.getElementById('readRxBtn').disabled = false;
+    }
+  }
+
+  function renderRxSummary(data) {
+    let html = '';
+
+    // Vitals
+    const v = data.vitals || {};
+    const vitalItems = [
+      v.bp && `BP: ${v.bp}`, v.heart_rate && `HR: ${v.heart_rate}`,
+      v.spo2 && `SpO2: ${v.spo2}`, v.temperature && `Temp: ${v.temperature}`,
+      v.weight && `Wt: ${v.weight}`
+    ].filter(Boolean);
+    if (vitalItems.length) {
+      html += `<div class="vitals-row">${vitalItems.map(v => `<div class="vital-chip">${v}</div>`).join('')}</div>`;
+      html += '<div style="height:12px"></div>';
+    }
+    if (data.clinical_notes) {
+      html += `<div style="font-size:13px;color:#475569;margin-bottom:12px">📝 ${data.clinical_notes}</div>`;
+    }
+
+    // Medicines
+    (data.medicines || []).forEach(m => {
+      html += `<div class="medicine-card">
+        <div class="medicine-name">💊 ${m.name}</div>
+        <div class="medicine-detail">
+          ${m.dosage ? `<span>${m.dosage}</span> · ` : ''}
+          ${m.frequency_decoded ? `<span>${m.frequency_decoded}</span>` : ''}
+          ${m.duration ? ` · <span>${m.duration}</span>` : ''}
+        </div>
+        ${m.meal_timing && !m.meal_timing.includes('MISSING') ? `<div class="medicine-detail">🍽 ${m.meal_timing}</div>` : ''}
+        ${m.special_instructions ? `<div class="medicine-detail">ℹ️ ${m.special_instructions}</div>` : ''}
+        ${(m.flags || []).map(f => `<span class="flag-badge">⚠️ ${f}</span>`).join(' ')}
+      </div>`;
+    });
+
+    if (data.additional_instructions) {
+      html += `<div style="background:#F0FDF4;border-left:3px solid #22C55E;padding:10px;border-radius:0 8px 8px 0;font-size:13px;margin-top:8px">
+        📋 ${data.additional_instructions}</div>`;
+    }
+
+    document.getElementById('rxSummaryContent').innerHTML = html;
+  }
+
+  async function generateMessage() {
+    document.getElementById('msgSpinner').style.display = 'block';
+    document.getElementById('msgContent').style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('prescription', JSON.stringify(prescriptionData));
+    if (notesData) formData.append('notes', JSON.stringify(notesData));
+    if (patient.name) formData.append('patient_name', patient.name);
+
+    try {
+      const res = await fetch('/api/message/generate', { method: 'POST', body: formData });
+      const data = await res.json();
+      document.getElementById('messageText').textContent = data.message;
+      document.getElementById('msgContent').style.display = 'block';
+    } catch (e) {
+      showToast('Error generating message');
+    } finally {
+      document.getElementById('msgSpinner').style.display = 'none';
+    }
+  }
+
+  function copyMessage() {
+    const text = document.getElementById('messageText').textContent;
+    navigator.clipboard.writeText(text).then(() => showToast('✅ Copied to clipboard'));
+  }
+
+  function shareWhatsApp() {
+    const text = document.getElementById('messageText').textContent;
+    const phone = patient.phone.replace(/\D/g, '');
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  }
+
+  // ── Toast ──────────────────────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+</script>
+</body>
+</html>

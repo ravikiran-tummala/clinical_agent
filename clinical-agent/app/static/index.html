@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Clinical Co-Pilot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .screen { display: none; }
+    .screen.active { display: flex; }
+    .pulse-ring {
+      animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+      70% { transform: scale(1); box-shadow: 0 0 0 16px rgba(239,68,68,0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+    }
+    .spinner {
+      border: 3px solid #e5e7eb;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      width: 32px; height: 32px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .medicine-card { transition: box-shadow 0.2s; }
+    .medicine-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SCREEN 1 — Patient Selection                                           -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div id="screen1" class="screen active flex-col min-h-screen">
+
+  <!-- Header -->
+  <div class="bg-indigo-600 text-white px-5 pt-12 pb-8">
+    <div class="flex items-center gap-3 mb-1">
+      <div class="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-lg">🩺</div>
+      <div>
+        <p class="text-indigo-200 text-xs font-medium uppercase tracking-wide">Clinical Co-Pilot</p>
+        <h1 class="text-xl font-bold">Good morning, Doctor</h1>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="flex-1 px-5 py-6 space-y-5">
+
+    <!-- Phone input -->
+    <div class="bg-white rounded-2xl shadow-sm p-5">
+      <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Start Consultation</h2>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Patient Phone Number</label>
+      <div class="flex gap-2">
+        <input id="phoneInput" type="tel" placeholder="+91 98765 43210"
+          class="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          inputmode="tel" />
+        <button onclick="lookupPatient()"
+          class="bg-indigo-600 text-white px-4 py-3 rounded-xl font-semibold text-sm hover:bg-indigo-700 transition">
+          Search
+        </button>
+      </div>
+      <p id="phoneError" class="text-red-500 text-xs mt-2 hidden">Please enter a valid phone number.</p>
+    </div>
+
+    <!-- Patient card (shown after lookup) -->
+    <div id="patientCard" class="hidden bg-white rounded-2xl shadow-sm p-5 fade-in">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-2xl">👤</div>
+        <div class="flex-1">
+          <p id="patientName" class="font-semibold text-gray-900 text-base"></p>
+          <p id="patientPhone" class="text-sm text-gray-400"></p>
+        </div>
+        <span id="patientBadge" class="text-xs bg-green-100 text-green-700 font-medium px-2.5 py-1 rounded-full"></span>
+      </div>
+    </div>
+
+    <!-- New patient form -->
+    <div id="newPatientForm" class="hidden bg-white rounded-2xl shadow-sm p-5 fade-in space-y-3">
+      <p class="text-sm font-semibold text-gray-500 uppercase tracking-wide">New Patient</p>
+      <input id="newName" type="text" placeholder="Full Name"
+        class="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+      <div class="flex gap-2">
+        <input id="newAge" type="number" placeholder="Age"
+          class="w-1/3 border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+        <select id="newGender"
+          class="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white">
+          <option value="">Gender</option>
+          <option>Male</option>
+          <option>Female</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Start button -->
+    <button id="startBtn" onclick="startConsultation()"
+      class="hidden w-full bg-indigo-600 text-white py-4 rounded-2xl text-base font-bold shadow-lg hover:bg-indigo-700 transition fade-in">
+      Start Consultation →
+    </button>
+
+    <!-- Recent patients -->
+    <div>
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Recent Patients</p>
+      <div id="recentList" class="space-y-2"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SCREEN 2 — Voice Recording / Consultation Notes                        -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div id="screen2" class="screen flex-col min-h-screen">
+
+  <!-- Header -->
+  <div class="bg-white border-b border-gray-100 px-5 pt-12 pb-4 flex items-center gap-3">
+    <button onclick="goBack(1)" class="text-gray-400 hover:text-gray-600 text-xl">←</button>
+    <div class="flex-1">
+      <p class="text-xs text-gray-400">Consultation Notes</p>
+      <p id="s2PatientName" class="font-bold text-gray-900"></p>
+    </div>
+    <button onclick="skipToScreen3()" class="text-sm text-indigo-600 font-semibold">Skip →</button>
+  </div>
+
+  <div class="flex-1 px-5 py-6 space-y-6">
+
+    <!-- Recording section -->
+    <div class="bg-white rounded-2xl shadow-sm p-6 text-center">
+      <p class="text-sm text-gray-500 mb-6">Tap to start recording the consultation.<br/>Speak naturally in any language.</p>
+
+      <!-- Record button -->
+      <div class="flex flex-col items-center gap-4">
+        <button id="recordBtn" onclick="toggleRecording()"
+          class="w-24 h-24 bg-red-500 text-white rounded-full text-3xl shadow-lg hover:bg-red-600 transition flex items-center justify-center">
+          🎙️
+        </button>
+        <p id="recordStatus" class="text-sm font-medium text-gray-500">Tap to record</p>
+        <p id="recordTimer" class="text-2xl font-mono text-gray-800 hidden">00:00</p>
+      </div>
+
+      <!-- Audio playback -->
+      <audio id="audioPlayback" controls class="w-full mt-5 hidden rounded-xl"></audio>
+    </div>
+
+    <!-- Process button -->
+    <button id="processNotesBtn" onclick="processNotes()" class="hidden w-full bg-indigo-600 text-white py-4 rounded-2xl text-base font-bold shadow-lg hover:bg-indigo-700 transition fade-in">
+      Process Notes →
+    </button>
+
+    <!-- Loading -->
+    <div id="notesLoading" class="hidden flex-col items-center gap-3 py-6">
+      <div class="spinner"></div>
+      <p class="text-sm text-gray-500">Transcribing and structuring notes…</p>
+    </div>
+
+    <!-- Notes result -->
+    <div id="notesResult" class="hidden space-y-3 fade-in"></div>
+
+    <!-- Next button -->
+    <button id="toScreen3Btn" onclick="goToScreen3()" class="hidden w-full bg-green-600 text-white py-4 rounded-2xl text-base font-bold shadow-lg hover:bg-green-700 transition fade-in">
+      Next: Add Prescription →
+    </button>
+
+  </div>
+</div>
+
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SCREEN 3 — Prescription Upload + Message                               -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div id="screen3" class="screen flex-col min-h-screen">
+
+  <!-- Header -->
+  <div class="bg-white border-b border-gray-100 px-5 pt-12 pb-4 flex items-center gap-3">
+    <button onclick="goBack(2)" class="text-gray-400 hover:text-gray-600 text-xl">←</button>
+    <div class="flex-1">
+      <p class="text-xs text-gray-400">Prescription</p>
+      <p id="s3PatientName" class="font-bold text-gray-900"></p>
+    </div>
+  </div>
+
+  <div class="flex-1 px-5 py-6 space-y-5">
+
+    <!-- Upload area -->
+    <div id="uploadArea" class="bg-white rounded-2xl shadow-sm p-6">
+      <p class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Prescription Image</p>
+      <label for="prescriptionFile"
+        class="flex flex-col items-center gap-3 border-2 border-dashed border-indigo-200 rounded-2xl p-8 cursor-pointer hover:border-indigo-400 transition">
+        <span class="text-4xl">📄</span>
+        <span class="text-sm font-medium text-indigo-600">Tap to upload or take photo</span>
+        <span class="text-xs text-gray-400">JPG, PNG, WEBP supported</span>
+      </label>
+      <input id="prescriptionFile" type="file" accept="image/*" capture="environment"
+        class="hidden" onchange="onFileSelected(event)" />
+      <img id="previewImg" class="hidden mt-4 rounded-2xl w-full object-cover max-h-56 shadow" />
+    </div>
+
+    <!-- Analyse button -->
+    <button id="analyseBtn" onclick="analyzePrescription()" class="hidden w-full bg-indigo-600 text-white py-4 rounded-2xl text-base font-bold shadow-lg hover:bg-indigo-700 transition fade-in">
+      Analyse Prescription →
+    </button>
+
+    <!-- Loading -->
+    <div id="prescLoading" class="hidden flex flex-col items-center gap-3 py-6">
+      <div class="spinner"></div>
+      <p class="text-sm text-gray-500">Reading prescription…</p>
+    </div>
+
+    <!-- Medicine cards -->
+    <div id="medicineCards" class="hidden space-y-3 fade-in"></div>
+
+    <!-- WhatsApp message -->
+    <div id="messageBox" class="hidden bg-white rounded-2xl shadow-sm p-5 fade-in">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Patient Message</p>
+        <span class="text-xs bg-yellow-100 text-yellow-700 font-medium px-2.5 py-1 rounded-full">Awaiting Approval</span>
+      </div>
+      <div id="messageText" class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-xl p-4 leading-relaxed"></div>
+    </div>
+
+    <!-- Action buttons -->
+    <div id="actionButtons" class="hidden space-y-3 fade-in">
+      <button onclick="approveAndCopy()"
+        class="w-full bg-green-600 text-white py-4 rounded-2xl text-base font-bold shadow-lg hover:bg-green-700 transition flex items-center justify-center gap-2">
+        ✅ Approve & Copy Message
+      </button>
+      <button onclick="shareWhatsApp()"
+        class="w-full bg-[#25D366] text-white py-4 rounded-2xl text-base font-bold shadow-lg hover:opacity-90 transition flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Share via WhatsApp
+      </button>
+      <button onclick="newConsultation()"
+        class="w-full border border-gray-200 text-gray-600 py-3.5 rounded-2xl text-sm font-semibold hover:bg-gray-50 transition">
+        New Consultation
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-5 py-3 rounded-full shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50">
+  Copied!
+</div>
+
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const state = {
+  patient: null,
+  notes: null,
+  prescription: null,
+  message: "",
+  audioBlob: null,
+};
+
+// Fake in-memory patient store
+const patients = JSON.parse(localStorage.getItem("patients") || "{}");
+
+// ─── Screen navigation ────────────────────────────────────────────────────────
+function showScreen(n) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById("screen" + n).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+function goBack(n) { showScreen(n); }
+
+// ─── Screen 1: Patient Selection ─────────────────────────────────────────────
+function lookupPatient() {
+  const phone = document.getElementById("phoneInput").value.trim().replace(/\s/g, "");
+  if (phone.length < 7) {
+    document.getElementById("phoneError").classList.remove("hidden");
+    return;
+  }
+  document.getElementById("phoneError").classList.add("hidden");
+
+  if (patients[phone]) {
+    showPatientCard(patients[phone]);
+  } else {
+    document.getElementById("patientCard").classList.add("hidden");
+    document.getElementById("newPatientForm").classList.remove("hidden");
+    document.getElementById("startBtn").classList.remove("hidden");
+    state.patient = { phone };
+  }
+}
+
+function showPatientCard(patient) {
+  document.getElementById("newPatientForm").classList.add("hidden");
+  const card = document.getElementById("patientCard");
+  card.classList.remove("hidden");
+  document.getElementById("patientName").textContent = patient.name;
+  document.getElementById("patientPhone").textContent = patient.phone;
+  document.getElementById("patientBadge").textContent = "Returning";
+  document.getElementById("startBtn").classList.remove("hidden");
+  state.patient = patient;
+}
+
+function startConsultation() {
+  // Save new patient if entered
+  const phone = document.getElementById("phoneInput").value.trim().replace(/\s/g, "");
+  if (!patients[phone]) {
+    const name = document.getElementById("newName").value.trim() || "Unknown";
+    const age = document.getElementById("newAge").value || "";
+    const gender = document.getElementById("newGender").value || "";
+    const patient = { phone, name, age, gender };
+    patients[phone] = patient;
+    localStorage.setItem("patients", JSON.stringify(patients));
+    state.patient = patient;
+  }
+  renderRecentPatients();
+  document.getElementById("s2PatientName").textContent = state.patient.name || state.patient.phone;
+  document.getElementById("s3PatientName").textContent = state.patient.name || state.patient.phone;
+  showScreen(2);
+}
+
+function renderRecentPatients() {
+  const list = document.getElementById("recentList");
+  const recent = Object.values(patients).slice(-5).reverse();
+  if (!recent.length) { list.innerHTML = '<p class="text-sm text-gray-400">No recent patients</p>'; return; }
+  list.innerHTML = recent.map(p => `
+    <div onclick='selectRecent(${JSON.stringify(p)})'
+      class="bg-white rounded-xl shadow-sm px-4 py-3 flex items-center gap-3 cursor-pointer hover:shadow-md transition">
+      <div class="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center text-base">👤</div>
+      <div>
+        <p class="text-sm font-semibold text-gray-900">${p.name}</p>
+        <p class="text-xs text-gray-400">${p.phone}</p>
+      </div>
+    </div>`).join("");
+}
+
+function selectRecent(patient) {
+  document.getElementById("phoneInput").value = patient.phone;
+  showPatientCard(patient);
+}
+
+// ─── Screen 2: Voice Recording ────────────────────────────────────────────────
+let mediaRecorder = null;
+let audioChunks = [];
+let timerInterval = null;
+let seconds = 0;
+let isRecording = false;
+
+async function toggleRecording() {
+  if (!isRecording) {
+    await startRecording();
+  } else {
+    stopRecording();
+  }
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: "audio/webm" });
+      state.audioBlob = blob;
+      const url = URL.createObjectURL(blob);
+      const audio = document.getElementById("audioPlayback");
+      audio.src = url;
+      audio.classList.remove("hidden");
+      document.getElementById("processNotesBtn").classList.remove("hidden");
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    seconds = 0;
+
+    const btn = document.getElementById("recordBtn");
+    btn.classList.add("pulse-ring");
+    btn.textContent = "⏹️";
+    document.getElementById("recordStatus").textContent = "Recording…";
+    const timer = document.getElementById("recordTimer");
+    timer.classList.remove("hidden");
+
+    timerInterval = setInterval(() => {
+      seconds++;
+      const m = String(Math.floor(seconds / 60)).padStart(2, "0");
+      const s = String(seconds % 60).padStart(2, "0");
+      timer.textContent = `${m}:${s}`;
+    }, 1000);
+  } catch (e) {
+    alert("Microphone access denied. Please allow microphone permission.");
+  }
+}
+
+function stopRecording() {
+  mediaRecorder.stop();
+  mediaRecorder.stream.getTracks().forEach(t => t.stop());
+  isRecording = false;
+  clearInterval(timerInterval);
+  const btn = document.getElementById("recordBtn");
+  btn.classList.remove("pulse-ring");
+  btn.textContent = "🎙️";
+  document.getElementById("recordStatus").textContent = "Recording complete";
+}
+
+async function processNotes() {
+  document.getElementById("processNotesBtn").classList.add("hidden");
+  document.getElementById("notesLoading").classList.remove("hidden");
+  document.getElementById("notesLoading").classList.add("flex");
+
+  const formData = new FormData();
+  formData.append("audio", state.audioBlob, "recording.webm");
+
+  try {
+    const res = await fetch("/api/analyze-notes", { method: "POST", body: formData });
+    const data = await res.json();
+    state.notes = data.notes;
+    renderNotes(data.notes);
+  } catch (e) {
+    showToast("Error processing notes");
+  } finally {
+    document.getElementById("notesLoading").classList.add("hidden");
+  }
+}
+
+function renderNotes(notes) {
+  const container = document.getElementById("notesResult");
+  container.classList.remove("hidden");
+  container.innerHTML = "";
+
+  const sections = [
+    { key: "complaints", label: "🤒 Complaints", color: "red" },
+    { key: "history", label: "📋 History", color: "yellow" },
+    { key: "examination_findings", label: "🔍 Examination", color: "blue" },
+    { key: "instructions", label: "💊 Instructions", color: "purple" },
+  ];
+
+  const colorMap = {
+    red: "bg-red-50 border-red-100 text-red-700",
+    yellow: "bg-yellow-50 border-yellow-100 text-yellow-700",
+    blue: "bg-blue-50 border-blue-100 text-blue-700",
+    purple: "bg-purple-50 border-purple-100 text-purple-700",
+  };
+
+  sections.forEach(({ key, label, color }) => {
+    const items = notes[key];
+    if (!items || !items.length) return;
+    const cls = colorMap[color];
+    container.innerHTML += `
+      <div class="bg-white rounded-2xl shadow-sm p-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">${label}</p>
+        <ul class="space-y-1">
+          ${items.map(i => `<li class="text-sm px-3 py-1.5 rounded-lg border ${cls}">${i}</li>`).join("")}
+        </ul>
+      </div>`;
+  });
+
+  if (notes.diagnosis_impression) {
+    container.innerHTML += `
+      <div class="bg-white rounded-2xl shadow-sm p-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">🔬 Impression</p>
+        <p class="text-sm text-gray-700 bg-gray-50 rounded-xl p-3">${notes.diagnosis_impression}</p>
+      </div>`;
+  }
+
+  if (notes.follow_up) {
+    container.innerHTML += `
+      <div class="bg-green-50 border border-green-100 rounded-2xl p-4">
+        <p class="text-xs font-semibold text-green-600 uppercase tracking-wide mb-1">📅 Follow-up</p>
+        <p class="text-sm text-green-800">${notes.follow_up}</p>
+      </div>`;
+  }
+
+  container.innerHTML += `
+    <p class="text-xs text-gray-400 text-center">⚠️ AI transcription — doctor must verify</p>`;
+
+  document.getElementById("toScreen3Btn").classList.remove("hidden");
+}
+
+function skipToScreen3() {
+  document.getElementById("s3PatientName").textContent = state.patient?.name || "";
+  showScreen(3);
+}
+
+function goToScreen3() {
+  showScreen(3);
+}
+
+// ─── Screen 3: Prescription ────────────────────────────────────────────────────
+function onFileSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById("previewImg");
+    img.src = e.target.result;
+    img.classList.remove("hidden");
+    document.getElementById("analyseBtn").classList.remove("hidden");
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analyzePrescription() {
+  const fileInput = document.getElementById("prescriptionFile");
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  document.getElementById("analyseBtn").classList.add("hidden");
+  document.getElementById("prescLoading").classList.remove("hidden");
+  document.getElementById("prescLoading").classList.add("flex");
+  document.getElementById("medicineCards").classList.add("hidden");
+  document.getElementById("messageBox").classList.add("hidden");
+  document.getElementById("actionButtons").classList.add("hidden");
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch("/api/analyze-prescription", { method: "POST", body: formData });
+    const data = await res.json();
+    state.prescription = data.prescription;
+    state.message = data.message;
+    renderMedicineCards(data.prescription);
+    renderMessage(data.message);
+  } catch (e) {
+    showToast("Error reading prescription");
+    document.getElementById("analyseBtn").classList.remove("hidden");
+  } finally {
+    document.getElementById("prescLoading").classList.add("hidden");
+  }
+}
+
+function renderMedicineCards(rx) {
+  const container = document.getElementById("medicineCards");
+  container.classList.remove("hidden");
+  container.innerHTML = "";
+
+  if (rx.patient_name || rx.clinic) {
+    container.innerHTML += `
+      <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
+        <p class="text-xs font-semibold text-indigo-400 uppercase tracking-wide mb-1">Patient</p>
+        <p class="font-bold text-indigo-900">${rx.patient_name || state.patient?.name || "—"}</p>
+        <p class="text-xs text-indigo-500">${rx.clinic || ""} ${rx.doctor ? "· " + rx.doctor : ""}</p>
+      </div>`;
+  }
+
+  (rx.medicines || []).forEach(med => {
+    const flags = med.flags?.length
+      ? `<div class="mt-2 flex flex-wrap gap-1">${med.flags.map(f => `<span class="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">⚠️ ${f}</span>`).join("")}</div>`
+      : "";
+    container.innerHTML += `
+      <div class="medicine-card bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="font-semibold text-gray-900">${med.name}</p>
+            <p class="text-xs text-gray-400 mt-0.5">${med.dosage || ""} ${med.route ? "· " + med.route : ""}</p>
+          </div>
+          ${med.quantity_dispensed ? `<span class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full whitespace-nowrap">Qty: ${med.quantity_dispensed}</span>` : ""}
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-2">
+          <div class="bg-blue-50 rounded-xl p-2.5">
+            <p class="text-xs text-blue-400 font-medium">Frequency</p>
+            <p class="text-sm text-blue-800 font-semibold">${med.frequency_decoded || med.frequency || "—"}</p>
+          </div>
+          <div class="bg-green-50 rounded-xl p-2.5">
+            <p class="text-xs text-green-400 font-medium">When</p>
+            <p class="text-sm text-green-800 font-semibold">${med.meal_timing || "—"}</p>
+          </div>
+          <div class="bg-purple-50 rounded-xl p-2.5">
+            <p class="text-xs text-purple-400 font-medium">Duration</p>
+            <p class="text-sm text-purple-800 font-semibold">${med.duration || "—"}</p>
+          </div>
+          ${med.special_instructions ? `<div class="bg-yellow-50 rounded-xl p-2.5">
+            <p class="text-xs text-yellow-500 font-medium">Note</p>
+            <p class="text-sm text-yellow-800 font-semibold">${med.special_instructions}</p>
+          </div>` : ""}
+        </div>
+        ${flags}
+      </div>`;
+  });
+
+  if (rx.flags?.length) {
+    container.innerHTML += `
+      <div class="bg-orange-50 border border-orange-100 rounded-2xl p-4">
+        <p class="text-xs font-semibold text-orange-500 uppercase tracking-wide mb-2">⚠️ Doctor to clarify</p>
+        <ul class="space-y-1">${rx.flags.map(f => `<li class="text-sm text-orange-700">• ${f}</li>`).join("")}</ul>
+      </div>`;
+  }
+}
+
+function renderMessage(msg) {
+  document.getElementById("messageBox").classList.remove("hidden");
+  document.getElementById("messageText").textContent = msg;
+  document.getElementById("actionButtons").classList.remove("hidden");
+}
+
+// ─── Actions ─────────────────────────────────────────────────────────────────
+function approveAndCopy() {
+  navigator.clipboard.writeText(state.message).then(() => showToast("Message copied!"));
+}
+
+function shareWhatsApp() {
+  const phone = state.patient?.phone?.replace(/\D/g, "");
+  const text = encodeURIComponent(state.message);
+  const url = phone
+    ? `https://wa.me/${phone}?text=${text}`
+    : `https://wa.me/?text=${text}`;
+  window.open(url, "_blank");
+}
+
+function newConsultation() {
+  state.patient = null; state.notes = null; state.prescription = null; state.message = "";
+  state.audioBlob = null;
+  document.getElementById("phoneInput").value = "";
+  document.getElementById("patientCard").classList.add("hidden");
+  document.getElementById("newPatientForm").classList.add("hidden");
+  document.getElementById("startBtn").classList.add("hidden");
+  document.getElementById("audioPlayback").classList.add("hidden");
+  document.getElementById("processNotesBtn").classList.add("hidden");
+  document.getElementById("notesResult").classList.add("hidden");
+  document.getElementById("toScreen3Btn").classList.add("hidden");
+  document.getElementById("previewImg").classList.add("hidden");
+  document.getElementById("prescriptionFile").value = "";
+  document.getElementById("medicineCards").classList.add("hidden");
+  document.getElementById("messageBox").classList.add("hidden");
+  document.getElementById("actionButtons").classList.add("hidden");
+  showScreen(1);
+}
+
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.style.opacity = "1";
+  setTimeout(() => toast.style.opacity = "0", 2200);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+renderRecentPatients();
+</script>
+</body>
+</html>

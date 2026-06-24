@@ -80,17 +80,41 @@ If meal timing is not stated: ⚠️ MISSING (meal timing not specified — doct
 
 ---
 
-Flag any other unclear or missing field as ⚠️ UNCLEAR or ⚠️ MISSING.
+OUTPUT FORMAT — return valid JSON with this structure:
+{
+  "patient_name": "...",
+  "age": "...",
+  "gender": "...",
+  "visit_date": "...",
+  "clinic": "...",
+  "doctor": "...",
+  "vitals": {"bp": "...", "heart_rate": "...", "spo2": "...", "temperature": "...", "weight": "..."},
+  "clinical_notes": "...",
+  "medicines": [
+    {
+      "name": "...",
+      "dosage": "...",
+      "frequency": "raw notation e.g. 1-o-1",
+      "frequency_decoded": "human readable e.g. Morning and Night",
+      "duration": "...",
+      "route": "...",
+      "meal_timing": "...",
+      "quantity_dispensed": "...",
+      "special_instructions": "...",
+      "flags": ["list any unclear or missing fields"]
+    }
+  ],
+  "additional_instructions": "...",
+  "flags": ["prescription-level flags"],
+  "disclaimer": "AI extraction — doctor must verify before use"
+}
 
-Output a clean structured summary, one section per medicine.
-Do NOT diagnose. Do NOT suggest alternative medicines. Do NOT recommend treatment changes.
-Only extract what is written.
+Use null for missing fields. Return ONLY valid JSON, no markdown, no extra text.
 
-IMPORTANT SAFETY RULES:
+SAFETY RULES:
 - Never diagnose
 - Never recommend treatment changes
-- Flag ambiguous abbreviations (e.g., "OD" — once daily or right eye — flag if unclear)
-- Always output: "⚠️ This is an AI extraction. Doctor must verify before use."
+- Flag ambiguous abbreviations
 """
 
 MESSAGE_CREATOR_INSTRUCTION = """You are a patient communication assistant for a small clinic.
@@ -158,10 +182,16 @@ def run(image_path: str):
         config=types.GenerateContentConfig(
             system_instruction=PRESCRIPTION_READER_INSTRUCTION,
             temperature=0.1,
+            response_mime_type="application/json",
         ),
     )
     structured_prescription = reader_response.text
-    print(structured_prescription)
+    try:
+        import json
+        parsed = json.loads(structured_prescription)
+        print(json.dumps(parsed, indent=2, ensure_ascii=False))
+    except Exception:
+        print(structured_prescription)
 
     print("\n" + "=" * 60)
     print("STEP 2: MESSAGE CREATOR AGENT")
