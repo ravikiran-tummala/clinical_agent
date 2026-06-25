@@ -53,3 +53,37 @@ class ConsultationNotes(BaseModel):
     follow_up: Optional[str] = None
     raw_transcript: Optional[str] = None
     disclaimer: str = "AI transcription — doctor must verify before use"
+
+
+class BloodParameter(BaseModel):
+    name: str
+    value: Optional[str] = None
+    unit: Optional[str] = None
+    reference_range: Optional[str] = None
+    status: Optional[str] = None          # "normal", "high", "low", "critical"
+    flags: list[str] = Field(default_factory=list)
+
+
+class BloodReport(BaseModel):
+    patient_name: Optional[str] = None
+    age: Optional[str] = None
+    gender: Optional[str] = None
+    report_date: Optional[str] = None
+    lab_name: Optional[str] = None
+    doctor_name: Optional[str] = None
+    parameters: list[BloodParameter] = Field(default_factory=list)
+    overall_flags: list[str] = Field(default_factory=list)
+    disclaimer: str = "AI extraction — doctor must verify before use"
+
+
+class BloodReportSummary(BaseModel):
+    patient_name: Optional[str] = None
+    report_date: Optional[str] = None
+    normal_count: int = 0
+    abnormal_count: int = 0
+    critical_count: int = 0
+    key_findings: list[str] = Field(default_factory=list)
+    watch_list: list[str] = Field(default_factory=list)
+    questions_for_doctor: list[str] = Field(default_factory=list)
+    plain_summary: str = ""
+    disclaimer: str = "AI summary — doctor must verify before use"

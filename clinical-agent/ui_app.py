@@ -17,6 +17,8 @@ from fastapi.staticfiles import StaticFiles
 from google import genai
 from google.genai import types
 
+from app import patient_store
+
 _, project_id = google.auth.default()
 os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
 os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
@@ -186,6 +188,163 @@ async def generate_message(
         ),
     )
     return JSONResponse({"message": response.text})
+
+
+BLOOD_REPORT_INSTRUCTION = """You are a clinical lab report reader assistant.
+
+Extract all blood test parameters from the report and return structured JSON.
+
+For each parameter extract: name, value, unit, reference_range, status (normal/high/low/critical).
+Status rules:
+  normal   — value within reference range
+  low      — value below lower limit
+  high     — value above upper limit
+  critical — dangerously outside range (Hb < 7, Glucose > 500, K+ < 2.5 or > 6.5,
+             Na+ < 120 or > 160, Platelets < 50000)
+
+Return JSON:
+{
+  "patient_name": null, "age": null, "gender": null, "report_date": null,
+  "lab_name": null, "doctor_name": null,
+  "parameters": [
+    {"name": "...", "value": "...", "unit": "...", "reference_range": "...",
+     "status": "normal|high|low|critical", "flags": []}
+  ],
+  "overall_flags": [],
+  "disclaimer": "AI extraction — doctor must verify before use"
+}
+Extract every parameter. Do not skip any. Do not diagnose. Return ONLY valid JSON."""
+
+BLOOD_SUMMARY_INSTRUCTION = """You are a clinical report summariser.
+
+You will receive a structured blood report JSON. Produce a plain-English summary as JSON:
+{
+  "patient_name": null, "report_date": null,
+  "normal_count": 0, "abnormal_count": 0, "critical_count": 0,
+  "key_findings": ["Haemoglobin 9.2 g/dL (Low) — below normal range of 13.0-17.0"],
+  "watch_list": ["parameters borderline within 10% of limits"],
+  "questions_for_doctor": ["suggested questions based only on abnormal values"],
+  "plain_summary": "3-5 sentence plain-English paragraph. No jargon. No diagnosis.",
+  "disclaimer": "AI summary — doctor must verify before use"
+}
+Never diagnose. Never recommend treatment. Return ONLY valid JSON."""
+
+
+@app.post("/api/bloodreport/analyze")
+async def analyze_blood_report(file: UploadFile = File(...)):
+    ext = (file.filename or "report.pdf").rsplit(".", 1)[-1].lower()
+    mime_map = {
+        "pdf": "application/pdf",
+        "jpg": "image/jpeg", "jpeg": "image/jpeg",
+        "png": "image/png", "webp": "image/webp",
+    }
+    mime = mime_map.get(ext, "application/pdf")
+    file_bytes = await file.read()
+
+    client = genai.Client(vertexai=True, location="global")
+
+    # Step 1: extract structured parameters
+    report_response = client.models.generate_content(
+        model=MODEL,
+        contents=[types.Content(role="user", parts=[
+            types.Part.from_bytes(data=file_bytes, mime_type=mime),
+            types.Part.from_text(text="Extract all blood test parameters from this report."),
+        ])],
+        config=types.GenerateContentConfig(
+            system_instruction=BLOOD_REPORT_INSTRUCTION,
+            temperature=0.1,
+            response_mime_type="application/json",
+        ),
+    )
+    try:
+        report_json = json.loads(report_response.text)
+    except Exception:
+        return JSONResponse({"error": "Failed to parse blood report", "raw": report_response.text})
+
+    # Step 2: generate plain-English summary
+    summary_response = client.models.generate_content(
+        model=MODEL,
+        contents=[types.Content(role="user", parts=[
+            types.Part.from_text(text=f"Summarise this blood report:\n\n{json.dumps(report_json)}"),
+        ])],
+        config=types.GenerateContentConfig(
+            system_instruction=BLOOD_SUMMARY_INSTRUCTION,
+            temperature=0.2,
+            response_mime_type="application/json",
+        ),
+    )
+    try:
+        summary_json = json.loads(summary_response.text)
+    except Exception:
+        return JSONResponse({"error": "Failed to parse summary", "raw": summary_response.text})
+
+    return JSONResponse({"report": report_json, "summary": summary_json})
+
+
+# ---------------------------------------------------------------------------
+# Patient history endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/patient/save/bloodreport")
+async def save_blood_report(
+    phone: str = Form(...),
+    report: str = Form(...),
+    summary: str = Form(...),
+):
+    """Doctor-approved: save blood report + summary to patient history."""
+    try:
+        doc_id = patient_store.save_blood_report(
+            phone=phone,
+            report=json.loads(report),
+            summary=json.loads(summary),
+        )
+        return JSONResponse({"status": "saved", "doc_id": doc_id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/patient/save/prescription")
+async def save_prescription(
+    phone: str = Form(...),
+    prescription: str = Form(...),
+):
+    """Doctor-approved: save prescription to patient history."""
+    try:
+        doc_id = patient_store.save_prescription(phone=phone, prescription=json.loads(prescription))
+        return JSONResponse({"status": "saved", "doc_id": doc_id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/patient/save/consultation")
+async def save_consultation(
+    phone: str = Form(...),
+    notes: str = Form(...),
+):
+    """Doctor-approved: save consultation notes to patient history."""
+    try:
+        doc_id = patient_store.save_consultation(phone=phone, notes=json.loads(notes))
+        return JSONResponse({"status": "saved", "doc_id": doc_id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/patient/{phone}/history")
+async def get_patient_history(phone: str):
+    """Retrieve full patient history by phone number."""
+    try:
+        history = patient_store.get_patient_history(phone)
+        return JSONResponse(history)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/patient/{phone}/profile")
+async def get_patient_profile(phone: str):
+    profile = patient_store.get_patient_profile(phone)
+    if not profile:
+        return JSONResponse({"error": "Patient not found"}, status_code=404)
+    return JSONResponse(profile)
 
 
 if __name__ == "__main__":
