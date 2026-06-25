@@ -1,91 +1,235 @@
-🩺 Agentic Doctor Co-Pilot for Small Clinics
+# 🩺 Clinical Co-Pilot — Agentic AI Assistant for Small Clinics
 
-An agentic AI-powered clinical assistant designed for small general clinics to reduce cognitive load, structure unorganized data, and improve continuity of care — while keeping the doctor fully in control.
+An AI-powered clinical assistant built for small general clinics in India. It reduces the doctor's cognitive load by structuring handwritten prescriptions, transcribing consultation audio, analysing blood reports, and maintaining a persistent patient history — while keeping the doctor fully in control of every decision.
 
-🎯 Motivation
+> **This is a clinical decision support tool, not a medical device.**
+> All outputs require doctor review and approval before any action is taken.
 
-In small general clinics (10–15 patients/day):
+---
 
-Prescriptions are often handwritten and unstructured Diagnostic reports require manual scanning for abnormalities Past patient history is fragmented or memory-dependent Doctors spend time on repetitive cognitive work instead of patient care
+## Why This Exists
 
-👉 This system focuses on augmenting the doctor, not replacing them.
+In a small general clinic seeing 10–15 patients a day:
 
-🧠 Core Design Principles Doctor-first (no autonomous decisions) Human-in-the-loop for all critical actions Agentic architecture (modular, auditable agents) Safety > Intelligence Practical for small clinics, not enterprise-heavy 🧩 System Overview
+- Prescriptions are handwritten and unstructured
+- Blood reports require manual scanning for abnormalities
+- Patient history is fragmented or memory-dependent
+- Doctors spend time on repetitive cognitive work instead of patient care
 
-The system is composed of specialized, independent agents:
+This system **augments the doctor, not replaces them.**
 
-1️⃣ Intake Agent Inputs: Handwritten prescriptions (images) Lab / radiology reports (PDFs) Typed notes Patient-uploaded documents Responsibilities: OCR extraction Input validation Data normalization Metadata tagging (date, type, patient) 2️⃣ Prescription Intelligence Agent Converts: Handwritten / typed prescriptions → structured format Outputs: Medicine name Dosage Frequency Duration Special instructions Detects: Ambiguities (e.g., unclear abbreviations) Missing dosage/timing Enhancements: Generates structured clinical notes Suggests clarification prompts (for doctor review) 🧾 Medication Communication Layer (NEW)
+---
 
-Generates patient-friendly medication instructions:
+## What's Been Built
 
-“Take after food” “Morning / afternoon / night” “For 5 days” Conditional instructions (e.g., fever-based meds)
+### Phase 1 — Prescription Reader
+Upload a handwritten or printed prescription (image). The agent extracts structured medication details:
 
-Supports:
+| Field | Example |
+|---|---|
+| Medicine name | Amoxicillin |
+| Dosage | 500 mg |
+| Frequency | `1-0-1` → Morning and Night |
+| Meal timing | `AC` → Before food |
+| Duration | 5 days |
+| Special instructions | Avoid alcohol |
 
-Multi-language (English, Hindi, Telugu) WhatsApp-ready formatting
+> Screenshot coming soon
 
-⚠️ Always requires doctor approval before sharing
+---
 
-3️⃣ Diagnostics Triage Agent Supports: Blood reports Radiology reports (X-ray, MRI, CT summaries) Capabilities: Extracts values & reference ranges Flags abnormalities: 🔴 High attention 🟠 Borderline 🟢 Normal Outputs: Doctor-facing technical summary Optional patient-friendly explanation (disabled by default) Safety: ❌ No diagnosis ❌ No treatment suggestions ✅ “May indicate…” style phrasing only 4️⃣ Longitudinal Memory Agent Maintains: Patient visit history Prescriptions Diagnostic summaries Uploaded images/reports Capabilities: Timeline view across visits Trend detection: Rising glucose Falling hemoglobin Persistent abnormalities Example Output:
+### Phase 2 — Consultation Notes Agent
+Record a doctor's spoken consultation (in Telugu, Hindi, or English mix). The agent transcribes and structures it into:
 
-“Repeated borderline fasting glucose observed across last 3 visits.”
+- Chief complaints
+- History
+- Examination findings
+- Diagnosis impression *(only if doctor states it — never inferred)*
+- Instructions
+- Follow-up
 
-Design Constraint: ❌ No predictions ✅ Only retrospective insights 5️⃣ Follow-up & Recall Agent (NEW) Purpose:
+**Supports:** Telugu + Hindi + English code-switching  
+**Input:** `.m4a`, `.mp3`, `.wav`, `.webm` audio files
 
-Ensures continuity of care
+> Screenshot coming soon
 
-Features: Doctor-defined follow-ups: “Visit after 5 days” “Repeat blood test after 3 months” Automated reminders: WhatsApp (preferred) SMS (optional) Benefits: Improves patient adherence Increases revisit consistency 6️⃣ Patient Timeline Interface (NEW)
+---
 
-A unified clinical memory system per patient:
+### Phase 3 — WhatsApp Message Generator
+Takes the structured prescription (and optional consultation notes) and generates a patient-friendly WhatsApp message:
 
-Displays: Visit history Prescriptions Reports Images Doctor notes Capabilities: Chronological navigation Before/after comparison (e.g., skin images) Quick summary per visit 7️⃣ Voice-to-Notes Agent (NEW) Problem:
+```
+Hi [Patient Name],
 
-Doctors don’t want to type.
+Here are your medicines from today's visit:
 
-Solution: Convert spoken notes → structured clinical notes Example:
+💊 Amoxicillin 500mg — After breakfast and after dinner — for 5 days
+💊 Paracetamol 650mg — After food (only if fever) — as needed
 
-Input:
+Rest well and drink plenty of fluids.
 
-“Patient has fever for 2 days with mild cough…”
+If you have any concerns, please call the clinic.
+⚠️ Please confirm with your doctor before any changes.
+```
 
-Output:
+> Screenshot coming soon
 
-Structured SOAP-style notes 8️⃣ Safety & Governance Agent
+---
 
-A mandatory guardrail layer ensuring system safety.
+### Phase 4 — Blood Report Analyser *(Latest)*
+Upload a blood report PDF. The system runs two agents in sequence:
 
-Responsibilities: Blocks: Diagnosis generation Treatment recommendations Enforces: Doctor approval workflows Adds: Medico-legal disclaimers Maintains: Full audit logs of AI outputs and actions 🔐 Safety & Compliance
+**Agent 1 — Report Reader**
+Extracts every parameter with value, unit, reference range, and status:
 
-This system is designed with strict safety constraints:
+| Parameter | Value | Unit | Range | Status |
+|---|---|---|---|---|
+| Haemoglobin | 9.2 | g/dL | 13.0–17.0 | 🔴 Low |
+| Blood Glucose (F) | 92 | mg/dL | 70–100 | 🟢 Normal |
+| Platelets | 48,000 | cells/μL | 1.5L–4.5L | 🔴 Critical |
 
-🚫 Prohibited: Diagnosis Treatment recommendations Autonomous patient communication ✅ Enforced: Doctor approval before: Saving data Sending patient messages Explicit disclaimers on all outputs Full audit logging Transparent AI behavior
+**Agent 2 — Summary Generator**
+Produces a plain-English summary the doctor can review:
 
-This is a clinical assistant, not a medical device.
+> *"Most of your blood test results are within the normal range. Your haemoglobin is slightly low and your platelet count needs immediate attention — your doctor will discuss this with you."*
 
-📦 MVP Scope (Phase 1)
+> Screenshot coming soon
 
-Focus on high-value, low-risk features:
+---
 
-Core: Prescription → structured summary Blood report → abnormality highlighting Doctor review & approval interface Added High-Impact Features: Medication instruction generator Patient timeline (basic) Follow-up reminders (manual trigger) Target Build Time:
+### Patient History Store
+All doctor-approved records are saved to **Cloud Firestore** — a distributed, serverless document database.
 
-2–3 weeks
+**Structure:**
+```
+patients/
+  {phone_number}/
+    profile        → name, age, gender
+    prescriptions/ → timestamped prescription records
+    consultations/ → timestamped consultation notes
+    blood_reports/ → timestamped report + summary pairs
+```
 
-🚀 Roadmap Phase 1 (MVP) Prescription structuring Blood report triage Doctor approval workflow Patient timeline (read-only) Medication messaging Phase 2 Radiology report support Trend detection across visits Voice-to-notes WhatsApp integration Phase 3 Patient communication (with consent) Automated follow-up reminders Clinic analytics dashboard 🛠️ Suggested Tech Stack Backend: Python (FastAPI) AI Layer: LLM (GPT-4 / GPT-4.1 / equivalent) OCR: Tesseract / Google Vision / AWS Textract Storage: Relational DB (PostgreSQL) → structured data Object storage (S3/GCS) → reports & images Vector DB → semantic retrieval (optional) Frontend: Web dashboard (doctor-facing) Optional: iOS app (doctor) Lightweight patient interface Integrations: WhatsApp Business API (critical for India) SMS fallback 📊 Success Metrics ⏱️ Time saved per patient 🧾 Reduction in manual prescription rewriting 🧪 Accuracy of abnormality detection 🔁 Daily active usage by doctor ✍️ Doctor edits per AI-generated summary 📲 Patient adherence to medication & follow-ups 🚧 Non-Goals
+- Phone number is the patient identifier (aligns with WhatsApp)
+- Saving only happens **after doctor approves** the output
+- Globally distributed, scales automatically, free tier for clinic workloads
 
-This project explicitly does NOT aim to:
+---
 
-Replace doctors Provide diagnoses Automate treatment decisions Operate without doctor oversight Act as a standalone medical system 🧪 Example Workflow Doctor uploads prescription AI structures medication + instructions Doctor reviews & edits Patient receives clean instructions (WhatsApp) Patient uploads blood report AI highlights abnormal values Doctor reviews summary Stored in patient timeline 🤝 Contributing
+## Architecture
 
-We welcome:
+```
+                        ┌─────────────────────┐
+                        │   Doctor Interface   │
+                        │  (FastAPI + Web UI)  │
+                        └──────────┬──────────┘
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │       Root Orchestrator      │
+                    │       (clinical_copilot)     │
+                    └──┬──────┬──────┬──────┬─────┘
+                       │      │      │      │
+           ┌───────────▼┐ ┌───▼──┐ ┌▼────┐ ┌▼──────────────┐
+           │Prescription│ │Notes │ │Msg  │ │  Blood Report  │
+           │  Reader    │ │Agent │ │Agent│ │ Reader+Summary │
+           └───────────┬┘ └───┬──┘ └┬────┘ └┬──────────────┘
+                       │      │      │       │
+                    ┌──▼──────▼──────▼───────▼──┐
+                    │      Doctor Review         │
+                    │   (approve / edit / skip)  │
+                    └──────────────┬─────────────┘
+                                   │ approved
+                    ┌──────────────▼─────────────┐
+                    │     Cloud Firestore         │
+                    │   Patient History Store     │
+                    └────────────────────────────┘
+```
 
-Clinicians (validation & feedback) Engineers (architecture, reliability) Researchers (agentic systems in healthcare) Contribution Rule:
+---
 
-All contributions must strictly preserve safety constraints.
+## Tech Stack
 
-⚠️ Disclaimer
+| Layer | Technology |
+|---|---|
+| Agent framework | Google ADK (`google-adk`) |
+| AI model | Gemini 2.0 Flash (Vertex AI / AI Studio) |
+| API server | FastAPI + Uvicorn |
+| Patient store | Cloud Firestore (distributed, serverless) |
+| Audio | Google GenAI Files API |
+| Language | Python 3.11+ |
+| Package manager | `uv` |
 
-This software is intended strictly as a clinical decision support tool.
+---
 
-It does NOT provide diagnoses It does NOT recommend treatments It does NOT replace medical judgment
+## API Endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/prescription/read` | Upload prescription image → structured JSON |
+| POST | `/api/notes/process` | Upload audio or text → consultation notes JSON |
+| POST | `/api/message/generate` | Generate WhatsApp message from prescription |
+| POST | `/api/bloodreport/analyze` | Upload blood report PDF → extract + summarise |
+| POST | `/api/patient/save/prescription` | Doctor-approved save to patient history |
+| POST | `/api/patient/save/consultation` | Doctor-approved save to patient history |
+| POST | `/api/patient/save/bloodreport` | Doctor-approved save to patient history |
+| GET | `/api/patient/{phone}/history` | Full patient history |
+| GET | `/api/patient/{phone}/profile` | Patient profile |
+
+---
+
+## Running Locally
+
+```bash
+# Clone
+git clone https://github.com/ravikiran-tummala/clinical_agent.git
+cd clinical_agent/clinical-agent
+
+# Install dependencies
+uv sync
+
+# Set AI Studio API key (personal Gmail — free tier)
+export GOOGLE_API_KEY="your-key-from-aistudio.google.com"
+
+# Run the UI
+uv run python ui_app.py
+# Open http://localhost:8080
+```
+
+---
+
+## Safety & Compliance
+
+| Rule | Detail |
+|---|---|
+| No autonomous diagnosis | Agents never infer diagnosis unless doctor explicitly states it |
+| No treatment suggestions | Agents only structure what the doctor has already prescribed |
+| Doctor approval gate | Nothing is saved or sent to a patient without explicit approval |
+| Disclaimers on all outputs | Every AI output carries `"AI extraction — doctor must verify before use"` |
+| Audit trail | All saves timestamped in Firestore |
+
+---
+
+## Roadmap
+
+- [x] Phase 1 — Prescription reader + structured JSON
+- [x] Phase 2 — Consultation notes from audio (Telugu/Hindi/English)
+- [x] Phase 3 — WhatsApp message generator
+- [x] Phase 4 — Blood report analyser + plain-English summary
+- [x] Patient history store (Firestore, phone-keyed)
+- [ ] UI for patient timeline view
+- [ ] Trend detection across visits (e.g. rising glucose)
+- [ ] Radiology report support
+- [ ] WhatsApp Business API integration
+- [ ] Follow-up reminders
+
+---
+
+## Disclaimer
+
+This software is intended strictly as a **clinical decision support tool**.
+
+- It does **not** provide diagnoses
+- It does **not** recommend treatments
+- It does **not** replace medical judgment
 
 Final medical decisions must always be made by a licensed physician.
