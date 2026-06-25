@@ -107,6 +107,30 @@ Produces a plain-English summary the doctor can review:
 
 ---
 
+### Phase 5 — Patient Insights *(Latest)*
+After every doctor-approved save (prescription, consultation, or blood report), the system automatically regenerates insights from the full patient history and caches them in Firestore.
+
+**What it analyses:**
+- Blood parameter trends across reports (e.g. Hb declining visit-over-visit)
+- Recurring complaints and diagnoses across consultations
+- Medications that keep reappearing (suggesting chronic or unresolved conditions)
+
+**What it produces (`PatientInsights`):**
+
+| Field | Description |
+|---|---|
+| `trends` | Per-parameter trend with direction: improving / worsening / stable / fluctuating |
+| `risk_flags` | Predicted risks with severity (low/medium/high) and supporting evidence |
+| `recurring_patterns` | Complaints, medications, or diagnoses appearing across multiple visits |
+| `overall_assessment` | Plain-English paragraph for the doctor summarising the health trajectory |
+
+**Example risk flag:**
+> *"Haemoglobin has dropped from 13.2 → 11.8 → 10.2 g/dL across 3 reports despite iron prescription — possible compliance issue or absorption problem."*
+
+Insights are cached under `patients/{phone}/insights/latest` and refreshed on every save. The doctor can also trigger a manual refresh.
+
+---
+
 ### Patient History Store
 All doctor-approved records are saved to **Cloud Firestore** — a distributed, serverless document database.
 
@@ -184,6 +208,8 @@ patients/
 | POST | `/api/patient/save/bloodreport` | Doctor-approved save to patient history |
 | GET | `/api/patient/{phone}/history` | Full patient history |
 | GET | `/api/patient/{phone}/profile` | Patient profile |
+| GET | `/api/patient/{phone}/insights` | Cached insights (202 if not yet generated) |
+| POST | `/api/patient/{phone}/insights/refresh` | Force regenerate insights and return result |
 
 ---
 
@@ -226,7 +252,8 @@ uv run python ui_app.py
 - [x] Phase 3 — WhatsApp message generator
 - [x] Phase 4 — Blood report analyser + plain-English summary
 - [x] Patient history store (Firestore, phone-keyed)
-- [ ] UI for patient timeline view
+- [x] Phase 5 — Patient insights: trends, risk flags, recurring patterns (auto-cached on every save)
+- [ ] UI for patient insights / timeline view
 - [ ] Trend detection across visits (e.g. rising glucose)
 - [ ] Radiology report support
 - [ ] WhatsApp Business API integration

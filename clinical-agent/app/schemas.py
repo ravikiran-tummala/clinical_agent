@@ -87,3 +87,44 @@ class BloodReportSummary(BaseModel):
     questions_for_doctor: list[str] = Field(default_factory=list)
     plain_summary: str = ""
     disclaimer: str = "AI summary — doctor must verify before use"
+
+
+# ---------------------------------------------------------------------------
+# Patient Insights
+# ---------------------------------------------------------------------------
+
+class TrendPoint(BaseModel):
+    date: Optional[str] = None
+    value: str
+    unit: Optional[str] = None
+    status: Optional[str] = None  # "normal", "low", "high", "critical"
+
+
+class ParameterTrend(BaseModel):
+    parameter: str
+    direction: str  # "improving", "worsening", "stable", "fluctuating"
+    data_points: list[TrendPoint] = Field(default_factory=list)
+    observation: str  # one-line human-readable summary
+
+
+class RiskFlag(BaseModel):
+    risk: str
+    severity: str  # "low", "medium", "high"
+    evidence: str  # which data points support this
+    recommendation_for_doctor: str
+
+
+class RecurringPattern(BaseModel):
+    pattern_type: str  # "complaint", "medication", "diagnosis"
+    description: str
+    frequency: str  # e.g. "3 of 4 visits", "every visit"
+
+
+class PatientInsights(BaseModel):
+    generated_at: Optional[str] = None
+    data_summary: str = ""  # e.g. "Based on 3 prescriptions, 2 consultations, 1 blood report"
+    trends: list[ParameterTrend] = Field(default_factory=list)
+    risk_flags: list[RiskFlag] = Field(default_factory=list)
+    recurring_patterns: list[RecurringPattern] = Field(default_factory=list)
+    overall_assessment: str = ""  # plain-English paragraph for the doctor
+    disclaimer: str = "AI insights — doctor must verify before acting"

@@ -129,6 +129,21 @@ def get_blood_reports(phone: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Insights cache
+# ---------------------------------------------------------------------------
+
+def save_insights(phone: str, insights: dict) -> None:
+    """Overwrite the cached insights document for this patient."""
+    _patient_ref(phone).collection("insights").document("latest").set(insights)
+
+
+def get_insights(phone: str) -> Optional[dict]:
+    """Return cached insights, or None if not yet generated."""
+    doc = _patient_ref(phone).collection("insights").document("latest").get()
+    return doc.to_dict() if doc.exists else None
+
+
+# ---------------------------------------------------------------------------
 # Full patient history
 # ---------------------------------------------------------------------------
 

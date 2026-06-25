@@ -5,6 +5,7 @@ Run with:
 Then open http://localhost:8080
 """
 
+import asyncio
 import base64
 import json
 import os
@@ -18,6 +19,7 @@ from google import genai
 from google.genai import types
 
 from app import patient_store
+from app.insights import generate_and_cache_insights
 
 _, project_id = google.auth.default()
 os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
@@ -291,13 +293,14 @@ async def save_blood_report(
     report: str = Form(...),
     summary: str = Form(...),
 ):
-    """Doctor-approved: save blood report + summary to patient history."""
+    """Doctor-approved: save blood report + summary, then refresh insights."""
     try:
         doc_id = patient_store.save_blood_report(
             phone=phone,
             report=json.loads(report),
             summary=json.loads(summary),
         )
+        asyncio.create_task(generate_and_cache_insights(phone))
         return JSONResponse({"status": "saved", "doc_id": doc_id})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -308,9 +311,10 @@ async def save_prescription(
     phone: str = Form(...),
     prescription: str = Form(...),
 ):
-    """Doctor-approved: save prescription to patient history."""
+    """Doctor-approved: save prescription, then refresh insights."""
     try:
         doc_id = patient_store.save_prescription(phone=phone, prescription=json.loads(prescription))
+        asyncio.create_task(generate_and_cache_insights(phone))
         return JSONResponse({"status": "saved", "doc_id": doc_id})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -321,9 +325,10 @@ async def save_consultation(
     phone: str = Form(...),
     notes: str = Form(...),
 ):
-    """Doctor-approved: save consultation notes to patient history."""
+    """Doctor-approved: save consultation notes, then refresh insights."""
     try:
         doc_id = patient_store.save_consultation(phone=phone, notes=json.loads(notes))
+        asyncio.create_task(generate_and_cache_insights(phone))
         return JSONResponse({"status": "saved", "doc_id": doc_id})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -345,6 +350,27 @@ async def get_patient_profile(phone: str):
     if not profile:
         return JSONResponse({"error": "Patient not found"}, status_code=404)
     return JSONResponse(profile)
+
+
+@app.get("/api/patient/{phone}/insights")
+async def get_patient_insights(phone: str):
+    """Return cached insights. Returns 202 if not yet generated."""
+    insights = patient_store.get_insights(phone)
+    if not insights:
+        return JSONResponse(
+            {"status": "pending", "message": "Insights not yet generated. Save a record to trigger generation."},
+            status_code=202,
+        )
+    return JSONResponse(insights)
+
+
+@app.post("/api/patient/{phone}/insights/refresh")
+async def refresh_patient_insights(phone: str):
+    """Manually trigger a fresh insights generation and wait for result."""
+    insights = await generate_and_cache_insights(phone)
+    if not insights:
+        return JSONResponse({"error": "Could not generate insights — no records found"}, status_code=404)
+    return JSONResponse(insights)
 
 
 if __name__ == "__main__":
