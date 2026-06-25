@@ -7,6 +7,16 @@ An AI-powered clinical assistant built for small general clinics in India. It re
 
 ---
 
+## UI Screenshots
+
+| Step 1 — Patient | Step 2 — Consultation Notes | Step 3 — Prescription |
+|---|---|---|
+| ![Patient selection screen](docs/screenshots/step1_patient.png) | ![Consultation notes screen](docs/screenshots/step2_notes.png) | ![Prescription upload screen](docs/screenshots/step3_prescription.png) |
+
+The interface walks the doctor through a 3-step flow: select/register the patient → record or type consultation notes → upload the prescription image. Each step feeds the next, and the AI processes inputs in the background before presenting results for doctor review.
+
+---
+
 ## Why This Exists
 
 In a small general clinic seeing 10–15 patients a day:
@@ -34,7 +44,7 @@ Upload a handwritten or printed prescription (image). The agent extracts structu
 | Duration | 5 days |
 | Special instructions | Avoid alcohol |
 
-> Screenshot coming soon
+*See [Step 3 — Prescription upload](#ui-screenshots) above.*
 
 ---
 
@@ -51,7 +61,7 @@ Record a doctor's spoken consultation (in Telugu, Hindi, or English mix). The ag
 **Supports:** Telugu + Hindi + English code-switching  
 **Input:** `.m4a`, `.mp3`, `.wav`, `.webm` audio files
 
-> Screenshot coming soon
+*See [Step 2 — Consultation Notes](#ui-screenshots) above.*
 
 ---
 
@@ -72,7 +82,7 @@ If you have any concerns, please call the clinic.
 ⚠️ Please confirm with your doctor before any changes.
 ```
 
-> Screenshot coming soon
+*See [UI Screenshots](#ui-screenshots) above.*
 
 ---
 
@@ -93,7 +103,7 @@ Produces a plain-English summary the doctor can review:
 
 > *"Most of your blood test results are within the normal range. Your haemoglobin is slightly low and your platelet count needs immediate attention — your doctor will discuss this with you."*
 
-> Screenshot coming soon
+*See [UI Screenshots](#ui-screenshots) above.*
 
 ---
 
