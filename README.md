@@ -83,7 +83,7 @@ If you have any concerns, please call the clinic.
 ⚠️ Please confirm with your doctor before any changes.
 ```
 
-Includes a direct "Share via WhatsApp" button pre-filled with the patient's number.
+The doctor reviews and edits the message, then clicks **"Send to Patient WhatsApp"** — the message is delivered directly to the patient via the Twilio WhatsApp API. No manual copy-paste or phone required.
 
 ---
 
@@ -151,7 +151,25 @@ The doctor can also trigger a manual refresh from the Patient Insights panel.
 
 ---
 
-### Phase 7 — Hamburger Menu & Patient Insights UI *(Latest)*
+### Phase 8 — WhatsApp Send Integration *(Latest)*
+After the `message_creator_agent` drafts the patient message, a **"Send to Patient WhatsApp"** button in the UI triggers a `POST /send-whatsapp` call. The backend sends the message via the **Twilio WhatsApp API** — no WhatsApp Business account required, just a Twilio sandbox number.
+
+**Flow:**
+1. Doctor reviews (and optionally edits) the drafted message
+2. Clicks "Send to Patient WhatsApp"
+3. Backend calls Twilio → patient receives message on WhatsApp
+4. Button shows "✅ Sent" confirmation; errors surface as a toast
+
+**Required env vars:**
+```
+TWILIO_ACCOUNT_SID=ACxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxx
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886   # Twilio sandbox default
+```
+
+---
+
+### Phase 7 — Hamburger Menu & Patient Insights UI
 A slide-out drawer accessible from screens 2 and 3 (after patient entry). Tapping **Patient Insights** opens a full-screen panel that loads the cached insights and renders them as structured cards (overall assessment, risk flags with colour-coded severity, trends with directional arrows, recurring patterns as chips).
 
 The drawer acts as an extensibility hub for all upcoming patient-specific features:
@@ -224,6 +242,7 @@ The drawer acts as an extensibility hub for all upcoming patient-specific featur
 | API server | FastAPI + Uvicorn |
 | Patient store | Cloud Firestore |
 | Audio | Google GenAI Files API |
+| WhatsApp delivery | Twilio WhatsApp API |
 | Language | Python 3.11+ |
 | Package manager | `uv` |
 
@@ -236,6 +255,7 @@ The drawer acts as an extensibility hub for all upcoming patient-specific featur
 | POST | `/api/prescription/read` | Upload prescription image → structured JSON |
 | POST | `/api/notes/process` | Upload audio or text → consultation notes JSON |
 | POST | `/api/message/generate` | Generate WhatsApp message from prescription + notes |
+| POST | `/send-whatsapp` | Send approved message to patient via Twilio WhatsApp |
 | POST | `/api/bloodreport/analyze` | Upload blood report → extract parameters + summary |
 | POST | `/api/patient/save/prescription` | Doctor-approved save → patient history + refresh insights |
 | POST | `/api/patient/save/consultation` | Doctor-approved save → patient history + refresh insights |
@@ -293,13 +313,14 @@ uv run python ui_app.py
 - [x] Phase 5 — Patient history store (Firestore, phone-keyed)
 - [x] Phase 6 — Patient insights: trends, risk flags, recurring patterns (auto-cached on every save)
 - [x] Phase 7 — Hamburger menu with slide-out drawer and live Patient Insights panel
+- [x] Phase 8 — WhatsApp send via Twilio (doctor approves → message delivered directly to patient)
 - [ ] Visit history UI
 - [ ] Reports UI (blood reports, X-rays, MRIs)
 - [ ] Prescriptions history UI
 - [ ] Vitals tracker with trend charts
 - [ ] Allergies & alerts management
 - [ ] Radiology report support (X-ray, MRI)
-- [ ] WhatsApp Business API integration
+- [ ] Upgrade to WhatsApp Business API (production sender)
 - [ ] Follow-up reminders
 
 ---

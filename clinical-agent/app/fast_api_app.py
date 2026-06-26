@@ -14,9 +14,11 @@
 import os
 
 import google.auth
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from google.adk.cli.fast_api import get_fast_api_app
 from google.cloud import logging as google_cloud_logging
+from pydantic import BaseModel
 
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
@@ -48,6 +50,41 @@ app: FastAPI = get_fast_api_app(
 )
 app.title = "clinical-agent"
 app.description = "API for interacting with the Agent clinical-agent"
+
+
+class WhatsAppSendRequest(BaseModel):
+    to: str          # patient phone number e.g. "+919876543210"
+    message: str     # approved message text
+
+
+@app.post("/send-whatsapp")
+def send_whatsapp(req: WhatsAppSendRequest) -> dict[str, str]:
+    """Send an approved message to the patient via Twilio WhatsApp sandbox."""
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    from_number = os.environ.get("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
+
+    if not account_sid or not auth_token:
+        raise HTTPException(
+            status_code=503,
+            detail="Twilio credentials not configured (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN).",
+        )
+
+    from twilio.rest import Client as TwilioClient  # noqa: PLC0415
+
+    phone = req.to.strip()
+    if not phone.startswith("+"):
+        phone = "+" + phone
+    to_whatsapp = f"whatsapp:{phone}"
+
+    client = TwilioClient(account_sid, auth_token)
+    msg = client.messages.create(
+        from_=from_number,
+        to=to_whatsapp,
+        body=req.message,
+    )
+    logger.log_struct({"event": "whatsapp_sent", "sid": msg.sid, "to": phone}, severity="INFO")
+    return {"status": "sent", "sid": msg.sid}
 
 
 @app.post("/feedback")
