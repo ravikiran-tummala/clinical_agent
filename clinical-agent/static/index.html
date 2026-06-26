@@ -244,6 +244,144 @@
       z-index: 999;
     }
     .toast.show { opacity: 1; }
+
+    /* Hamburger button */
+    .hamburger-btn {
+      margin-left: auto; background: none; border: none;
+      cursor: pointer; padding: 6px; display: none;
+      flex-direction: column; gap: 5px; align-items: flex-end;
+    }
+    .hamburger-btn.visible { display: flex; }
+    .hamburger-btn span {
+      display: block; height: 2px; background: white;
+      border-radius: 2px; transition: width 0.2s;
+    }
+    .hamburger-btn span:nth-child(1) { width: 20px; }
+    .hamburger-btn span:nth-child(2) { width: 14px; }
+    .hamburger-btn span:nth-child(3) { width: 20px; }
+
+    /* Drawer overlay */
+    .drawer-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s; z-index: 100;
+    }
+    .drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+    /* Drawer panel */
+    .drawer {
+      position: fixed; top: 0; right: -320px; width: 300px; height: 100%;
+      background: white; z-index: 101;
+      transition: right 0.28s cubic-bezier(0.4,0,0.2,1);
+      display: flex; flex-direction: column;
+      box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+    }
+    .drawer.open { right: 0; }
+
+    .drawer-header {
+      background: #0F4C75; color: white;
+      padding: 16px 18px; display: flex; align-items: center; gap: 10px;
+    }
+    .drawer-patient-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+    .drawer-patient-name { font-size: 14px; font-weight: 600; }
+    .drawer-patient-sub { font-size: 11px; opacity: 0.7; }
+    .drawer-close {
+      margin-left: auto; background: none; border: none;
+      color: white; font-size: 22px; cursor: pointer;
+      line-height: 1; opacity: 0.8; padding: 2px 4px;
+    }
+    .drawer-close:hover { opacity: 1; }
+
+    .drawer-body { flex: 1; overflow-y: auto; padding: 8px 0; }
+
+    .drawer-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 18px; cursor: pointer;
+      transition: background 0.15s; border-bottom: 1px solid #F1F5F9;
+    }
+    .drawer-item:hover { background: #F8FAFC; }
+    .drawer-item.active { background: #EFF6FF; }
+    .drawer-item-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .drawer-item-label { font-size: 14px; font-weight: 500; color: #1A2B3C; }
+    .drawer-item-sub { font-size: 11px; color: #94A3B8; margin-top: 1px; }
+    .drawer-item-arrow { margin-left: auto; color: #CBD5E1; font-size: 16px; }
+    .drawer-item.coming-soon { opacity: 0.45; cursor: default; }
+    .drawer-item.coming-soon:hover { background: none; }
+
+    /* Reports sub-menu */
+    .drawer-submenu {
+      display: none; background: #F8FAFC;
+      border-bottom: 1px solid #F1F5F9;
+    }
+    .drawer-submenu.open { display: block; }
+    .drawer-submenu-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 18px 11px 36px; font-size: 13px;
+      color: #475569; cursor: default;
+      border-bottom: 1px solid #F1F5F9;
+    }
+    .drawer-submenu-item:last-child { border-bottom: none; }
+    .drawer-submenu-item.coming-soon { opacity: 0.5; }
+
+    /* Insights panel (full-screen overlay) */
+    .insights-panel {
+      position: fixed; inset: 0; background: #F0F4F8;
+      z-index: 200; transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      overflow-y: auto;
+    }
+    .insights-panel.open { transform: translateX(0); }
+    .insights-header {
+      background: #0F4C75; color: white;
+      padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+      position: sticky; top: 0; z-index: 1;
+    }
+    .insights-back {
+      background: none; border: none; color: white;
+      font-size: 22px; cursor: pointer; padding: 0 6px 0 0;
+      opacity: 0.85; line-height: 1;
+    }
+    .insights-back:hover { opacity: 1; }
+    .insights-body { padding: 20px; max-width: 600px; margin: 0 auto; }
+
+    /* Insight cards */
+    .insight-card {
+      background: white; border-radius: 12px; padding: 16px 18px;
+      margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .insight-card-title {
+      font-size: 12px; font-weight: 600; color: #64748B;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;
+    }
+    .risk-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    }
+    .risk-high { background: #FEE2E2; color: #991B1B; }
+    .risk-medium { background: #FEF3C7; color: #92400E; }
+    .risk-low { background: #DCFCE7; color: #166534; }
+    .trend-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 0; border-bottom: 1px solid #F1F5F9;
+      font-size: 13px;
+    }
+    .trend-row:last-child { border-bottom: none; }
+    .trend-dir { font-size: 16px; }
+    .trend-name { flex: 1; color: #334155; }
+    .trend-val { font-size: 12px; color: #64748B; }
+    .pattern-chip {
+      display: inline-block; background: #F1F5F9; border-radius: 20px;
+      padding: 4px 12px; font-size: 13px; color: #334155; margin: 3px;
+    }
   </style>
 </head>
 <body>
@@ -254,6 +392,9 @@
     <div class="header-title">Clinical Co-Pilot</div>
     <div class="header-sub">Doctor Assistant · AI-powered</div>
   </div>
+  <button class="hamburger-btn" id="hamburgerBtn" onclick="openDrawer()" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
 </div>
 
 <!-- Step indicator -->
@@ -389,6 +530,104 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- ─── Drawer overlay ─── -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+
+<!-- ─── Side drawer ─── -->
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-patient-avatar" id="drawerAvatar">?</div>
+    <div>
+      <div class="drawer-patient-name" id="drawerPatientName">No patient selected</div>
+      <div class="drawer-patient-sub" id="drawerPatientSub"></div>
+    </div>
+    <button class="drawer-close" onclick="closeDrawer()">&#x2715;</button>
+  </div>
+  <div class="drawer-body">
+
+    <!-- Patient Insights -->
+    <div class="drawer-item active" onclick="openInsights()">
+      <div class="drawer-item-icon" style="background:#EFF6FF">📊</div>
+      <div>
+        <div class="drawer-item-label">Patient Insights</div>
+        <div class="drawer-item-sub">Trends, risks &amp; patterns</div>
+      </div>
+      <div class="drawer-item-arrow">›</div>
+    </div>
+
+    <!-- Visit History -->
+    <div class="drawer-item coming-soon">
+      <div class="drawer-item-icon" style="background:#F0FDF4">🗂</div>
+      <div>
+        <div class="drawer-item-label">Visit History</div>
+        <div class="drawer-item-sub">Coming soon</div>
+      </div>
+    </div>
+
+    <!-- Reports (collapsible) -->
+    <div class="drawer-item" onclick="toggleReports()" id="reportsRow">
+      <div class="drawer-item-icon" style="background:#FFF7ED">🧪</div>
+      <div>
+        <div class="drawer-item-label">Reports</div>
+        <div class="drawer-item-sub">Blood reports, X-rays, MRIs</div>
+      </div>
+      <div class="drawer-item-arrow" id="reportsArrow">›</div>
+    </div>
+    <div class="drawer-submenu" id="reportsSubmenu">
+      <div class="drawer-submenu-item coming-soon">🩸 Blood reports <span style="margin-left:auto;font-size:11px;color:#CBD5E1">Coming soon</span></div>
+      <div class="drawer-submenu-item coming-soon">🦴 X-rays <span style="margin-left:auto;font-size:11px;color:#CBD5E1">Coming soon</span></div>
+      <div class="drawer-submenu-item coming-soon">🧲 MRIs <span style="margin-left:auto;font-size:11px;color:#CBD5E1">Coming soon</span></div>
+    </div>
+
+    <!-- Prescriptions -->
+    <div class="drawer-item coming-soon">
+      <div class="drawer-item-icon" style="background:#FDF4FF">💊</div>
+      <div>
+        <div class="drawer-item-label">Prescriptions</div>
+        <div class="drawer-item-sub">Coming soon</div>
+      </div>
+    </div>
+
+    <!-- Vitals Tracker -->
+    <div class="drawer-item coming-soon">
+      <div class="drawer-item-icon" style="background:#F0FDF4">❤️</div>
+      <div>
+        <div class="drawer-item-label">Vitals tracker</div>
+        <div class="drawer-item-sub">Coming soon</div>
+      </div>
+    </div>
+
+    <!-- Allergies & Alerts -->
+    <div class="drawer-item coming-soon">
+      <div class="drawer-item-icon" style="background:#FFF1F2">⚠️</div>
+      <div>
+        <div class="drawer-item-label">Allergies &amp; alerts</div>
+        <div class="drawer-item-sub">Coming soon</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─── Patient Insights panel ─── -->
+<div class="insights-panel" id="insightsPanel">
+  <div class="insights-header">
+    <button class="insights-back" onclick="closeInsights()">&#x2190;</button>
+    <div>
+      <div style="font-size:16px;font-weight:600">Patient Insights</div>
+      <div style="font-size:11px;opacity:0.7" id="insightsPatientSub"></div>
+    </div>
+    <button onclick="refreshInsights()" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;color:white;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">↻ Refresh</button>
+  </div>
+  <div class="insights-body">
+    <div class="spinner" id="insightsSpinner" style="display:block">
+      <div class="spinner-icon"></div>
+      Loading insights…
+    </div>
+    <div id="insightsContent"></div>
+  </div>
+</div>
+
 <script>
   // ── State ──────────────────────────────────────────────────────────────
   let patient = { name: '', phone: '', age: '' };
@@ -408,6 +647,8 @@
       if (i + 1 < n) s.classList.add('done');
       if (i + 1 === n) s.classList.add('active');
     });
+    const btn = document.getElementById('hamburgerBtn');
+    if (n > 1) btn.classList.add('visible'); else btn.classList.remove('visible');
     window.scrollTo(0, 0);
   }
 
@@ -653,6 +894,161 @@
     const phone = patient.phone.replace(/\D/g, '');
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
+  }
+
+  // ── Hamburger / Drawer ────────────────────────────────────────────────
+  function openDrawer() {
+    const initials = patient.name
+      ? patient.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase()
+      : '?';
+    document.getElementById('drawerAvatar').textContent = initials;
+    document.getElementById('drawerPatientName').textContent = patient.name || 'No patient selected';
+    document.getElementById('drawerPatientSub').textContent = patient.phone
+      ? patient.phone + (patient.age ? ' · ' + patient.age : '')
+      : '';
+    document.getElementById('drawer').classList.add('open');
+    document.getElementById('drawerOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeDrawer() {
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('drawerOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function toggleReports() {
+    const submenu = document.getElementById('reportsSubmenu');
+    const arrow = document.getElementById('reportsArrow');
+    const open = submenu.classList.toggle('open');
+    arrow.style.transform = open ? 'rotate(90deg)' : '';
+    arrow.style.transition = 'transform 0.2s';
+  }
+
+  // ── Patient Insights panel ────────────────────────────────────────────
+  function openInsights() {
+    closeDrawer();
+    document.getElementById('insightsPatientSub').textContent = patient.name
+      ? patient.name + (patient.age ? ' · ' + patient.age : '')
+      : '';
+    document.getElementById('insightsPanel').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    loadInsights();
+  }
+
+  function closeInsights() {
+    document.getElementById('insightsPanel').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function refreshInsights() {
+    if (!patient.phone) { showToast('No patient selected'); return; }
+    document.getElementById('insightsContent').innerHTML = '';
+    document.getElementById('insightsSpinner').style.display = 'block';
+    fetch(`/api/patient/${encodeURIComponent(patient.phone)}/insights/refresh`, { method: 'POST' })
+      .then(() => loadInsights())
+      .catch(() => showToast('Error refreshing insights'));
+  }
+
+  async function loadInsights() {
+    if (!patient.phone) {
+      document.getElementById('insightsSpinner').style.display = 'none';
+      document.getElementById('insightsContent').innerHTML =
+        '<div style="text-align:center;padding:40px;color:#94A3B8">No patient selected</div>';
+      return;
+    }
+    document.getElementById('insightsSpinner').style.display = 'block';
+    document.getElementById('insightsContent').innerHTML = '';
+    try {
+      const res = await fetch(`/api/patient/${encodeURIComponent(patient.phone)}/insights`);
+      const data = await res.json();
+      renderInsights(data);
+    } catch (e) {
+      document.getElementById('insightsContent').innerHTML =
+        '<div style="text-align:center;padding:40px;color:#DC2626">Could not load insights</div>';
+    } finally {
+      document.getElementById('insightsSpinner').style.display = 'none';
+    }
+  }
+
+  function renderInsights(data) {
+    if (!data || (!data.trends?.length && !data.risk_flags?.length && !data.recurring_patterns && !data.overall_assessment)) {
+      document.getElementById('insightsContent').innerHTML =
+        `<div class="insight-card" style="text-align:center;padding:30px;color:#94A3B8">
+          <div style="font-size:36px;margin-bottom:10px">📋</div>
+          <div style="font-size:14px">No insights yet.</div>
+          <div style="font-size:12px;margin-top:6px">Insights are generated after saving consultations, prescriptions or reports.</div>
+        </div>`;
+      return;
+    }
+
+    let html = '';
+
+    // Overall assessment
+    if (data.overall_assessment) {
+      html += `<div class="insight-card" style="border-left:4px solid #0F4C75">
+        <div class="insight-card-title">📝 Overall assessment</div>
+        <div style="font-size:14px;line-height:1.6;color:#334155">${data.overall_assessment}</div>
+      </div>`;
+    }
+
+    // Risk flags
+    if (data.risk_flags?.length) {
+      html += `<div class="insight-card">
+        <div class="insight-card-title">🚩 Risk flags</div>`;
+      data.risk_flags.forEach(flag => {
+        const sev = (flag.severity || 'low').toLowerCase();
+        const cls = sev === 'high' ? 'risk-high' : sev === 'medium' ? 'risk-medium' : 'risk-low';
+        const icon = sev === 'high' ? '🔴' : sev === 'medium' ? '🟡' : '🟢';
+        html += `<div style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span class="risk-badge ${cls}">${icon} ${flag.severity}</span>
+            <span style="font-size:14px;font-weight:500;color:#1A2B3C">${flag.flag}</span>
+          </div>
+          ${flag.evidence ? `<div style="font-size:12px;color:#64748B;margin-bottom:3px">Evidence: ${flag.evidence}</div>` : ''}
+          ${flag.recommendation ? `<div style="font-size:12px;color:#0F4C75">→ ${flag.recommendation}</div>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Trends
+    if (data.trends?.length) {
+      html += `<div class="insight-card">
+        <div class="insight-card-title">📈 Trends</div>`;
+      data.trends.forEach(t => {
+        const dirIcon = { improving: '↗', worsening: '↘', stable: '→', fluctuating: '↕' }[t.direction] || '→';
+        const dirColor = { improving: '#16A34A', worsening: '#DC2626', stable: '#64748B', fluctuating: '#D97706' }[t.direction] || '#64748B';
+        html += `<div class="trend-row">
+          <span class="trend-dir" style="color:${dirColor}">${dirIcon}</span>
+          <span class="trend-name">${t.parameter}</span>
+          <span class="trend-val">${t.direction}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Recurring patterns
+    const rp = data.recurring_patterns;
+    if (rp && (rp.complaints?.length || rp.medications?.length || rp.diagnoses?.length)) {
+      html += `<div class="insight-card">
+        <div class="insight-card-title">🔁 Recurring patterns</div>`;
+      if (rp.complaints?.length) {
+        html += `<div style="margin-bottom:10px"><div style="font-size:12px;color:#64748B;margin-bottom:6px">Complaints</div>
+          <div>${rp.complaints.map(c => `<span class="pattern-chip">${c}</span>`).join('')}</div></div>`;
+      }
+      if (rp.medications?.length) {
+        html += `<div style="margin-bottom:10px"><div style="font-size:12px;color:#64748B;margin-bottom:6px">Medications</div>
+          <div>${rp.medications.map(m => `<span class="pattern-chip">💊 ${m}</span>`).join('')}</div></div>`;
+      }
+      if (rp.diagnoses?.length) {
+        html += `<div><div style="font-size:12px;color:#64748B;margin-bottom:6px">Diagnoses</div>
+          <div>${rp.diagnoses.map(d => `<span class="pattern-chip">${d}</span>`).join('')}</div></div>`;
+      }
+      html += `</div>`;
+    }
+
+    document.getElementById('insightsContent').innerHTML = html;
   }
 
   // ── Toast ──────────────────────────────────────────────────────────────

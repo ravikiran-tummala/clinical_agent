@@ -15,6 +15,8 @@ An AI-powered clinical assistant built for small general clinics in India. It re
 
 The interface walks the doctor through a 3-step flow: select/register the patient → record or type consultation notes → upload the prescription image. Each step feeds the next, and the AI processes inputs in the background before presenting results for doctor review.
 
+Once past the patient entry screen, a **hamburger menu** appears in the top-right corner of the header, giving the doctor quick access to patient-specific features — Patient Insights, Visit History, Reports, Prescriptions, Vitals tracker, and Allergies & alerts — without disrupting the consultation flow.
+
 ---
 
 ## Why This Exists
@@ -107,7 +109,7 @@ Produces a plain-English summary the doctor can review:
 
 ---
 
-### Phase 5 — Patient Insights *(Latest)*
+### Phase 5 — Patient Insights + Hamburger Menu *(Latest)*
 After every doctor-approved save (prescription, consultation, or blood report), the system automatically regenerates insights from the full patient history and caches them in Firestore.
 
 **What it analyses:**
@@ -128,6 +130,18 @@ After every doctor-approved save (prescription, consultation, or blood report), 
 > *"Haemoglobin has dropped from 13.2 → 11.8 → 10.2 g/dL across 3 reports despite iron prescription — possible compliance issue or absorption problem."*
 
 Insights are cached under `patients/{phone}/insights/latest` and refreshed on every save. The doctor can also trigger a manual refresh.
+
+**Hamburger menu UI:**
+The insights are surfaced via a slide-out drawer accessible from any screen after patient entry. Tapping **Patient Insights** opens a full-screen panel that loads the cached insights and renders them as structured cards. The drawer also acts as an extensibility hub for upcoming features:
+
+| Section | Status |
+|---|---|
+| Patient Insights | ✅ Live |
+| Visit History | Coming soon |
+| Reports (Blood reports, X-rays, MRIs) | Coming soon |
+| Prescriptions | Coming soon |
+| Vitals tracker | Coming soon |
+| Allergies & alerts | Coming soon |
 
 ---
 
@@ -253,8 +267,12 @@ uv run python ui_app.py
 - [x] Phase 4 — Blood report analyser + plain-English summary
 - [x] Patient history store (Firestore, phone-keyed)
 - [x] Phase 5 — Patient insights: trends, risk flags, recurring patterns (auto-cached on every save)
-- [ ] UI for patient insights / timeline view
-- [ ] Trend detection across visits (e.g. rising glucose)
+- [x] Hamburger menu UI with slide-out drawer and live Patient Insights panel
+- [ ] Visit history UI
+- [ ] Reports UI (blood reports, X-rays, MRIs)
+- [ ] Prescriptions history UI
+- [ ] Vitals tracker with trend charts
+- [ ] Allergies & alerts management
 - [ ] Radiology report support
 - [ ] WhatsApp Business API integration
 - [ ] Follow-up reminders
