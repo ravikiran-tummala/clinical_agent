@@ -13,9 +13,9 @@ An AI-powered clinical assistant built for small general clinics in India. It re
 |---|---|---|
 | ![Patient selection screen](docs/screenshots/step1_patient.png) | ![Consultation notes screen](docs/screenshots/step2_notes.png) | ![Prescription upload screen](docs/screenshots/step3_prescription.png) |
 
-The interface walks the doctor through a 3-step flow: select/register the patient → record or type consultation notes → upload the prescription image. Each step feeds the next, and the AI processes inputs in the background before presenting results for doctor review.
+The interface is a 3-step flow: select or register the patient → record or type consultation notes → upload the prescription image. Each step feeds the next, and the AI processes inputs in the background before presenting results for doctor review.
 
-Once past the patient entry screen, a **hamburger menu** appears in the top-right corner of the header, giving the doctor quick access to patient-specific features — Patient Insights, Visit History, Reports, Prescriptions, Vitals tracker, and Allergies & alerts — without disrupting the consultation flow.
+Once past the patient entry screen, a **hamburger menu** appears in the top-right corner of the header. It gives the doctor quick access to patient-specific features without leaving the consultation flow.
 
 ---
 
@@ -35,35 +35,35 @@ This system **augments the doctor, not replaces them.**
 ## What's Been Built
 
 ### Phase 1 — Prescription Reader
-Upload a handwritten or printed prescription (image). The agent extracts structured medication details:
+Upload a handwritten or printed prescription image. The agent extracts structured medication details:
 
 | Field | Example |
 |---|---|
 | Medicine name | Amoxicillin |
 | Dosage | 500 mg |
-| Frequency | `1-0-1` → Morning and Night |
+| Frequency (raw) | `1-0-1` |
+| Frequency (decoded) | Morning and Night |
 | Meal timing | `AC` → Before food |
 | Duration | 5 days |
 | Special instructions | Avoid alcohol |
+| Flags | Unclear dosage, missing duration |
 
-*See [Step 3 — Prescription upload](#ui-screenshots) above.*
+Unclear or unreadable fields are flagged rather than guessed.
 
 ---
 
 ### Phase 2 — Consultation Notes Agent
-Record a doctor's spoken consultation (in Telugu, Hindi, or English mix). The agent transcribes and structures it into:
+Record the doctor's spoken consultation (Telugu, Hindi, English, or any mix). The agent transcribes and structures it into:
 
 - Chief complaints
 - History
 - Examination findings
-- Diagnosis impression *(only if doctor states it — never inferred)*
+- Diagnosis / impression *(only if doctor explicitly states it — never inferred)*
 - Instructions
 - Follow-up
 
-**Supports:** Telugu + Hindi + English code-switching  
-**Input:** `.m4a`, `.mp3`, `.wav`, `.webm` audio files
-
-*See [Step 2 — Consultation Notes](#ui-screenshots) above.*
+**Supports:** Telugu + Hindi + English code-switching
+**Input:** Live mic recording in the browser, or `.m4a`, `.mp3`, `.wav`, `.webm` files
 
 ---
 
@@ -71,7 +71,7 @@ Record a doctor's spoken consultation (in Telugu, Hindi, or English mix). The ag
 Takes the structured prescription (and optional consultation notes) and generates a patient-friendly WhatsApp message:
 
 ```
-Hi [Patient Name],
+Hi Ramesh,
 
 Here are your medicines from today's visit:
 
@@ -79,17 +79,16 @@ Here are your medicines from today's visit:
 💊 Paracetamol 650mg — After food (only if fever) — as needed
 
 Rest well and drink plenty of fluids.
-
 If you have any concerns, please call the clinic.
 ⚠️ Please confirm with your doctor before any changes.
 ```
 
-*See [UI Screenshots](#ui-screenshots) above.*
+Includes a direct "Share via WhatsApp" button pre-filled with the patient's number.
 
 ---
 
-### Phase 4 — Blood Report Analyser *(Latest)*
-Upload a blood report PDF. The system runs two agents in sequence:
+### Phase 4 — Blood Report Analyser
+Upload a blood report PDF or image. Two agents run in sequence:
 
 **Agent 1 — Report Reader**
 Extracts every parameter with value, unit, reference range, and status:
@@ -101,38 +100,61 @@ Extracts every parameter with value, unit, reference range, and status:
 | Platelets | 48,000 | cells/μL | 1.5L–4.5L | 🔴 Critical |
 
 **Agent 2 — Summary Generator**
-Produces a plain-English summary the doctor can review:
+Produces a plain-English summary for the doctor:
 
 > *"Most of your blood test results are within the normal range. Your haemoglobin is slightly low and your platelet count needs immediate attention — your doctor will discuss this with you."*
 
-*See [UI Screenshots](#ui-screenshots) above.*
+---
+
+### Phase 5 — Patient History Store
+All doctor-approved records are saved to **Cloud Firestore**. Nothing is saved without explicit doctor approval.
+
+**Firestore structure:**
+```
+patients/
+  {phone_number}/
+    profile/             → name, age, gender, phone, updated_at
+    prescriptions/       → {doc_id}: PrescriptionOutput + saved_at
+    consultations/       → {doc_id}: ConsultationNotes + saved_at
+    blood_reports/       → {doc_id}: { report, summary, saved_at }
+    insights/
+      latest             → PatientInsights (auto-refreshed on every save)
+```
+
+- Phone number is the patient identifier (aligns with WhatsApp)
+- All records are timestamped with UTC `saved_at`
+- Profile upserts use `merge=True` to avoid overwriting existing data
 
 ---
 
-### Phase 5 — Patient Insights + Hamburger Menu *(Latest)*
-After every doctor-approved save (prescription, consultation, or blood report), the system automatically regenerates insights from the full patient history and caches them in Firestore.
+### Phase 6 — Patient Insights
+After every doctor-approved save, insights are automatically regenerated from the full patient history and cached in Firestore.
 
 **What it analyses:**
 - Blood parameter trends across reports (e.g. Hb declining visit-over-visit)
 - Recurring complaints and diagnoses across consultations
 - Medications that keep reappearing (suggesting chronic or unresolved conditions)
 
-**What it produces (`PatientInsights`):**
+**Output (`PatientInsights`):**
 
 | Field | Description |
 |---|---|
 | `trends` | Per-parameter trend with direction: improving / worsening / stable / fluctuating |
-| `risk_flags` | Predicted risks with severity (low/medium/high) and supporting evidence |
-| `recurring_patterns` | Complaints, medications, or diagnoses appearing across multiple visits |
-| `overall_assessment` | Plain-English paragraph for the doctor summarising the health trajectory |
+| `risk_flags` | Predicted risks with severity (low / medium / high), evidence, and recommendation |
+| `recurring_patterns` | Complaints, medications, diagnoses appearing across multiple visits |
+| `overall_assessment` | Plain-English paragraph summarising the patient's health trajectory |
 
 **Example risk flag:**
 > *"Haemoglobin has dropped from 13.2 → 11.8 → 10.2 g/dL across 3 reports despite iron prescription — possible compliance issue or absorption problem."*
 
-Insights are cached under `patients/{phone}/insights/latest` and refreshed on every save. The doctor can also trigger a manual refresh.
+The doctor can also trigger a manual refresh from the Patient Insights panel.
 
-**Hamburger menu UI:**
-The insights are surfaced via a slide-out drawer accessible from any screen after patient entry. Tapping **Patient Insights** opens a full-screen panel that loads the cached insights and renders them as structured cards. The drawer also acts as an extensibility hub for upcoming features:
+---
+
+### Phase 7 — Hamburger Menu & Patient Insights UI *(Latest)*
+A slide-out drawer accessible from screens 2 and 3 (after patient entry). Tapping **Patient Insights** opens a full-screen panel that loads the cached insights and renders them as structured cards (overall assessment, risk flags with colour-coded severity, trends with directional arrows, recurring patterns as chips).
+
+The drawer acts as an extensibility hub for all upcoming patient-specific features:
 
 | Section | Status |
 |---|---|
@@ -142,25 +164,6 @@ The insights are surfaced via a slide-out drawer accessible from any screen afte
 | Prescriptions | Coming soon |
 | Vitals tracker | Coming soon |
 | Allergies & alerts | Coming soon |
-
----
-
-### Patient History Store
-All doctor-approved records are saved to **Cloud Firestore** — a distributed, serverless document database.
-
-**Structure:**
-```
-patients/
-  {phone_number}/
-    profile        → name, age, gender
-    prescriptions/ → timestamped prescription records
-    consultations/ → timestamped consultation notes
-    blood_reports/ → timestamped report + summary pairs
-```
-
-- Phone number is the patient identifier (aligns with WhatsApp)
-- Saving only happens **after doctor approves** the output
-- Globally distributed, scales automatically, free tier for clinic workloads
 
 ---
 
@@ -190,8 +193,25 @@ patients/
                     ┌──────────────▼─────────────┐
                     │     Cloud Firestore         │
                     │   Patient History Store     │
+                    └──────────────┬─────────────┘
+                                   │ on every save
+                    ┌──────────────▼─────────────┐
+                    │     Insights Generator      │
+                    │  (async, cached to Firestore)│
                     └────────────────────────────┘
 ```
+
+### Agents
+
+| Agent | Role | Model |
+|---|---|---|
+| `prescription_reader_agent` | Extracts structured medicines from image/text | gemini-3.5-flash |
+| `consultation_notes_agent` | Transcribes audio, structures consultation notes | gemini-3.5-flash |
+| `blood_report_reader_agent` | Extracts parameters from blood report | gemini-3.5-flash |
+| `blood_report_summary_agent` | Plain-English summary of blood report | gemini-3.5-flash |
+| `message_creator_agent` | Generates WhatsApp patient message | gemini-flash-latest |
+| `clinical_copilot` (root) | Orchestrator — routes to sub-agents | gemini-flash-latest |
+| Insights generator | Analyses full history, produces risk flags and trends | gemini-3.5-flash |
 
 ---
 
@@ -200,9 +220,9 @@ patients/
 | Layer | Technology |
 |---|---|
 | Agent framework | Google ADK (`google-adk`) |
-| AI model | Gemini 2.0 Flash (Vertex AI / AI Studio) |
+| AI models | Gemini 3.5 Flash / Gemini Flash Latest (Vertex AI) |
 | API server | FastAPI + Uvicorn |
-| Patient store | Cloud Firestore (distributed, serverless) |
+| Patient store | Cloud Firestore |
 | Audio | Google GenAI Files API |
 | Language | Python 3.11+ |
 | Package manager | `uv` |
@@ -215,15 +235,15 @@ patients/
 |---|---|---|
 | POST | `/api/prescription/read` | Upload prescription image → structured JSON |
 | POST | `/api/notes/process` | Upload audio or text → consultation notes JSON |
-| POST | `/api/message/generate` | Generate WhatsApp message from prescription |
-| POST | `/api/bloodreport/analyze` | Upload blood report PDF → extract + summarise |
-| POST | `/api/patient/save/prescription` | Doctor-approved save to patient history |
-| POST | `/api/patient/save/consultation` | Doctor-approved save to patient history |
-| POST | `/api/patient/save/bloodreport` | Doctor-approved save to patient history |
-| GET | `/api/patient/{phone}/history` | Full patient history |
+| POST | `/api/message/generate` | Generate WhatsApp message from prescription + notes |
+| POST | `/api/bloodreport/analyze` | Upload blood report → extract parameters + summary |
+| POST | `/api/patient/save/prescription` | Doctor-approved save → patient history + refresh insights |
+| POST | `/api/patient/save/consultation` | Doctor-approved save → patient history + refresh insights |
+| POST | `/api/patient/save/bloodreport` | Doctor-approved save → patient history + refresh insights |
+| GET | `/api/patient/{phone}/history` | Full patient history (all records) |
 | GET | `/api/patient/{phone}/profile` | Patient profile |
 | GET | `/api/patient/{phone}/insights` | Cached insights (202 if not yet generated) |
-| POST | `/api/patient/{phone}/insights/refresh` | Force regenerate insights and return result |
+| POST | `/api/patient/{phone}/insights/refresh` | Force regenerate insights |
 
 ---
 
@@ -237,13 +257,18 @@ cd clinical_agent/clinical-agent
 # Install dependencies
 uv sync
 
-# Set AI Studio API key (personal Gmail — free tier)
-export GOOGLE_API_KEY="your-key-from-aistudio.google.com"
+# Authenticate with Google Cloud (Vertex AI)
+gcloud auth application-default login
 
-# Run the UI
+# The app auto-detects your GCP project. You can override:
+# export GOOGLE_CLOUD_PROJECT="your-project-id"
+
+# Run
 uv run python ui_app.py
 # Open http://localhost:8080
 ```
+
+> **Note:** The app uses Vertex AI (not AI Studio) and auto-sets `GOOGLE_CLOUD_LOCATION=global` and `GOOGLE_GENAI_USE_VERTEXAI=True`. You need a GCP project with Vertex AI API enabled and application default credentials configured.
 
 ---
 
@@ -254,7 +279,7 @@ uv run python ui_app.py
 | No autonomous diagnosis | Agents never infer diagnosis unless doctor explicitly states it |
 | No treatment suggestions | Agents only structure what the doctor has already prescribed |
 | Doctor approval gate | Nothing is saved or sent to a patient without explicit approval |
-| Disclaimers on all outputs | Every AI output carries `"AI extraction — doctor must verify before use"` |
+| Disclaimers on all outputs | Every AI output carries a doctor-must-verify notice |
 | Audit trail | All saves timestamped in Firestore |
 
 ---
@@ -265,15 +290,15 @@ uv run python ui_app.py
 - [x] Phase 2 — Consultation notes from audio (Telugu/Hindi/English)
 - [x] Phase 3 — WhatsApp message generator
 - [x] Phase 4 — Blood report analyser + plain-English summary
-- [x] Patient history store (Firestore, phone-keyed)
-- [x] Phase 5 — Patient insights: trends, risk flags, recurring patterns (auto-cached on every save)
-- [x] Hamburger menu UI with slide-out drawer and live Patient Insights panel
+- [x] Phase 5 — Patient history store (Firestore, phone-keyed)
+- [x] Phase 6 — Patient insights: trends, risk flags, recurring patterns (auto-cached on every save)
+- [x] Phase 7 — Hamburger menu with slide-out drawer and live Patient Insights panel
 - [ ] Visit history UI
 - [ ] Reports UI (blood reports, X-rays, MRIs)
 - [ ] Prescriptions history UI
 - [ ] Vitals tracker with trend charts
 - [ ] Allergies & alerts management
-- [ ] Radiology report support
+- [ ] Radiology report support (X-ray, MRI)
 - [ ] WhatsApp Business API integration
 - [ ] Follow-up reminders
 
