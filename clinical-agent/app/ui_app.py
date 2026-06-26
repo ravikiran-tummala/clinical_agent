@@ -18,6 +18,9 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from google import genai
 from google.genai import types
+from pydantic import BaseModel
+
+from app import patient_store
 
 _, project_id = google.auth.default()
 os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
@@ -185,6 +188,43 @@ async def analyze_notes(
         return JSONResponse({"error": "Could not parse notes"}, status_code=500)
 
     return JSONResponse({"notes": notes})
+
+
+class SaveNotesRequest(BaseModel):
+    phone: str
+    patient_name: str = None
+    notes: dict
+
+
+@app.post("/api/save-notes")
+async def save_notes(req: SaveNotesRequest):
+    try:
+        doc_id = patient_store.save_consultation(req.phone, req.notes, req.patient_name)
+        follow_up_date = req.notes.get("follow_up_date") or (
+            patient_store.parse_follow_up_days(req.notes.get("follow_up") or "")
+            and None  # date is computed inside save_consultation
+        )
+        return JSONResponse({"status": "saved", "id": doc_id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/followups/due")
+async def followups_due():
+    try:
+        items = patient_store.get_due_followups()
+        return JSONResponse({"followups": items})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/followups/{followup_id}/dismiss")
+async def dismiss_followup(followup_id: str):
+    try:
+        patient_store.dismiss_followup(followup_id)
+        return JSONResponse({"status": "dismissed"})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 if __name__ == "__main__":

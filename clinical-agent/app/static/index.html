@@ -104,6 +104,12 @@
       Start Consultation →
     </button>
 
+    <!-- Follow-ups Due -->
+    <div id="followupsSection" class="hidden">
+      <p class="text-xs font-semibold text-orange-500 uppercase tracking-wide mb-3">⏰ Follow-ups Due</p>
+      <div id="followupsList" class="space-y-2"></div>
+    </div>
+
     <!-- Recent patients -->
     <div>
       <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Recent Patients</p>
@@ -163,7 +169,7 @@
     <div id="notesResult" class="hidden space-y-3 fade-in"></div>
 
     <!-- Next button -->
-    <button id="toScreen3Btn" onclick="goToScreen3()" class="hidden w-full bg-green-600 text-white py-4 rounded-2xl text-base font-bold shadow-lg hover:bg-green-700 transition fade-in">
+    <button id="toScreen3Btn" onclick="approveNotesAndNext()" class="hidden w-full bg-green-600 text-white py-4 rounded-2xl text-base font-bold shadow-lg hover:bg-green-700 transition fade-in">
       Next: Add Prescription →
     </button>
 
@@ -483,7 +489,18 @@ function skipToScreen3() {
   showScreen(3);
 }
 
-function goToScreen3() {
+async function approveNotesAndNext() {
+  if (state.notes && state.patient?.phone) {
+    fetch("/api/save-notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phone: state.patient.phone,
+        patient_name: state.patient.name || null,
+        notes: state.notes,
+      }),
+    }).catch(() => {}); // fire-and-forget; don't block the doctor
+  }
   showScreen(3);
 }
 
@@ -656,8 +673,53 @@ function showToast(msg) {
   setTimeout(() => toast.style.opacity = "0", 2200);
 }
 
+// ─── Follow-ups ───────────────────────────────────────────────────────────────
+async function loadFollowups() {
+  try {
+    const res = await fetch("/api/followups/due");
+    if (!res.ok) return;
+    const { followups } = await res.json();
+    if (!followups?.length) return;
+
+    document.getElementById("followupsSection").classList.remove("hidden");
+    const list = document.getElementById("followupsList");
+    list.innerHTML = "";
+    followups.forEach(f => {
+      const isOverdue = f.follow_up_date < new Date().toISOString().slice(0, 10);
+      const card = document.createElement("div");
+      card.className = "bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-center justify-between gap-3 fade-in";
+      card.innerHTML = `
+        <div class="flex-1 min-w-0" onclick="selectFollowupPatient('${f.phone}', '${(f.patient_name||'').replace(/'/g,"\\'")}')">
+          <p class="font-semibold text-gray-900 truncate">${f.patient_name || f.phone}</p>
+          <p class="text-xs text-orange-600 mt-0.5">${f.follow_up_text || "Follow-up due"}</p>
+          <p class="text-xs ${isOverdue ? "text-red-500 font-semibold" : "text-gray-400"} mt-0.5">
+            ${isOverdue ? "⚠️ Overdue · " : ""}${f.follow_up_date}
+          </p>
+        </div>
+        <button onclick="dismissFollowup('${f.id}', this)" class="shrink-0 text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl px-3 py-2">
+          Dismiss
+        </button>`;
+      list.appendChild(card);
+    });
+  } catch (_) {}
+}
+
+async function dismissFollowup(id, btn) {
+  btn.closest("div.bg-orange-50").remove();
+  if (!document.getElementById("followupsList").children.length) {
+    document.getElementById("followupsSection").classList.add("hidden");
+  }
+  await fetch(`/api/followups/${encodeURIComponent(id)}/dismiss`, { method: "POST" }).catch(() => {});
+}
+
+function selectFollowupPatient(phone, name) {
+  document.getElementById("phoneInput").value = phone;
+  lookupPatient();
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 renderRecentPatients();
+loadFollowups();
 </script>
 </body>
 </html>
