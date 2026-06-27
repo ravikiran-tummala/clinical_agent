@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "clinical-agent-ui",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "python", "ui_app.py"],
+      "port": 8080
+    }
+  ]
+}
